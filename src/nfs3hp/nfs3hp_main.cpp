@@ -1,6 +1,7 @@
 #include <SDL3/SDL_main.h>
 #include <lib/file.h>
 #include <lib/gamepad.h>
+#include <lib/log.h>
 #include <lib/registry.h>
 #include <lib/window.h>
 #include <nfs3hp.h>
@@ -26,6 +27,8 @@ int main(int argc, char* argv[])
     (void)argc;
     (void)argv;
     setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1);
+    win32::initLog("sdmc:/switch/nfs3hp/log.txt");
+    win32::logPrintf("NFS3 HP starting (Switch)");
     win32::File::setDataDirectory("sdmc:/switch/nfs3hp/");
     win32::File::setCdDirectory("sdmc:/switch/nfs3hp/");
 #else

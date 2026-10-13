@@ -8,6 +8,11 @@
 # define __restrict__ __restrict
 # define NFS2_ASSERT(x)         \
     if (! (x)) __debugbreak()
+#elif defined(__SWITCH__)
+/* defined in src/lib/log.cpp: logs the failure, then traps */
+void nfs2_assertFailed(const char* expr, const char* file, int line, const char* func);
+# define NFS2_ASSERT(x)         \
+    if (! (x)) nfs2_assertFailed(#x, __FILE__, __LINE__, __func__)
 #elif defined(__aarch64__)
 # define NFS2_ASSERT(x)         \
     if (! (x)) asm volatile("brk #0")
