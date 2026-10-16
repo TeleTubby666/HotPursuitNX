@@ -82,10 +82,18 @@ public:
     static void setCdDirectory(const char* path);
     static x86::reg32 remove(const char* filename);
 
-    operator void*() { return reinterpret_cast<void*>(static_cast<intptr_t>(m_file)+1); }
+    /* non-null when the file is usable (a real descriptor or the NUL device) */
+    operator void*()
+    {
+        if (m_null)
+            return reinterpret_cast<void*>(static_cast<intptr_t>(1));
+        return reinterpret_cast<void*>(static_cast<intptr_t>(m_file)+1);
+    }
 private:
     int m_file;
     std::string m_filename;
+    /* software NUL device: reads hit EOF, writes are discarded */
+    bool m_null;
 };
 
 }

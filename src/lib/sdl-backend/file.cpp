@@ -233,21 +233,34 @@ bool FileEnumerator::findNext(WIN32_FIND_DATAA *data)
 File::File(int file, const char* name)
     :   m_file(_dup(file))
     ,   m_filename(name)
+    ,   m_null(false)
 {
 }
 
 File::File(const File& other)
-    :   m_file(_open(other.m_filename.c_str(), O_RDONLY|O_BINARY, 0664))
+    :   m_file(other.m_null ? -1 : _open(other.m_filename.c_str(), O_RDONLY|O_BINARY, 0664))
     ,   m_filename(other.m_filename)
+    ,   m_null(other.m_null)
 {
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "opening file %s for Map", m_filename.c_str());
 }
 
 File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creationFlags)
-    :   m_file()
+    :   m_file(-1)
     ,   m_filename(moveToRoot(path))
+    ,   m_null(false)
 {
     NFS2_USE(flags);
+#ifdef __SWITCH__
+    /* The game opens the Windows "nul" device. The Switch has no /dev/null
+     * (the lookup lands on the SD card and fails), so emulate it. */
+    if (SDL_strcasecmp(path, "nul") == 0)
+    {
+        m_null = true;
+        SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "opening NUL device");
+        return;
+    }
+#endif
     std::transform(m_filename.begin(), m_filename.end(), m_filename.begin(), ::tolower);
     //NFS2_ASSERT((flags & FILE_FLAG_OVERLAPPED) == 0);
     for (std::string::iterator it = m_filename.begin(); it != m_filename.end(); ++it)
@@ -310,6 +323,8 @@ File::~File()
 
 x86::reg32 File::seek(x86::reg32 mode, x86::sreg32 offset)
 {
+    if (m_null)
+        return 0;
     int seekMode = 0;
     switch(mode)
     {
@@ -332,24 +347,41 @@ x86::reg32 File::seek(x86::reg32 mode, x86::sreg32 offset)
 
 x86::reg32 File::read(void* buffer, x86::reg32 max, x86::reg32* totalRead)
 {
+    if (m_null)
+    {
+        NFS2_USE(buffer);
+        NFS2_USE(max);
+        *totalRead = 0;
+        return 1;
+    }
     *totalRead = ::_read(m_file, buffer, max);
     return *totalRead != x86::reg32(-1); //*totalRead == max;
 }
 
 x86::reg32 File::write(const void* buffer, x86::reg32 max, x86::reg32* totalWritten)
 {
+    if (m_null)
+    {
+        NFS2_USE(buffer);
+        *totalWritten = max;
+        return 1;
+    }
     *totalWritten = ::_write(m_file, buffer, max);
     return *totalWritten == max;
 }
 
 x86::reg32 File::truncate()
 {
+    if (m_null)
+        return 1;
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Truncating file %s", m_filename.c_str());
     return _chsize(m_file, _lseek(m_file, 0, 1)) == 0;
 }
 
 x86::reg32 File::size() const
 {
+    if (m_null)
+        return 0;
     struct stat buffer;
     fstat(m_file, &buffer);
     return buffer.st_size;
