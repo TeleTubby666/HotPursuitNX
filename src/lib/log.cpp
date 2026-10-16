@@ -6,6 +6,7 @@
 #include <string>
 #ifdef __SWITCH__
 # include <unistd.h>
+# include <switch.h>
 #endif
 
 /*
@@ -109,5 +110,46 @@ void nfs2_assertFailed(const char* expr, const char* file, int line, const char*
     if (win32::s_logFile)
         fsync(fileno(win32::s_logFile));
     asm volatile("brk #0");
+}
+#endif
+
+#ifdef __SWITCH__
+/*
+ * CPU exception handler (libnx calls this on a crash, e.g. a bad memory
+ * access in the recompiled code). Logs the fault so it can be located; the
+ * addresses can be resolved against the .elf with aarch64-none-elf-addr2line
+ * after subtracting the load base. The handler runs on a small stack, so it
+ * only uses a short buffer.
+ */
+extern "C" char __start__;
+
+extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
+{
+    FILE* f = win32::s_logFile;
+    if (!f)
+        return;
+    char buffer[256];
+    unsigned long long base = (unsigned long long) &__start__;
+    snprintf(buffer, sizeof(buffer),
+             "CRASH: desc=%u pc=0x%llx lr=0x%llx sp=0x%llx far=0x%llx esr=0x%x\n",
+             (unsigned) ctx->error_desc,
+             (unsigned long long) ctx->pc.x, (unsigned long long) ctx->lr.x,
+             (unsigned long long) ctx->sp.x, (unsigned long long) ctx->far.x,
+             (unsigned) ctx->esr);
+    fputs(buffer, f);
+    snprintf(buffer, sizeof(buffer), "CRASH: image base=0x%llx pc-base=0x%llx lr-base=0x%llx\n",
+             base, (unsigned long long) ctx->pc.x - base, (unsigned long long) ctx->lr.x - base);
+    fputs(buffer, f);
+    for (int i = 0; i < 29; i += 4)
+    {
+        snprintf(buffer, sizeof(buffer), "CRASH: x%d=%llx x%d=%llx x%d=%llx x%d=%llx\n",
+                 i, (unsigned long long) ctx->cpu_gprs[i].x,
+                 i + 1, (unsigned long long) (i + 1 < 29 ? ctx->cpu_gprs[i + 1].x : 0),
+                 i + 2, (unsigned long long) (i + 2 < 29 ? ctx->cpu_gprs[i + 2].x : 0),
+                 i + 3, (unsigned long long) (i + 3 < 29 ? ctx->cpu_gprs[i + 3].x : 0));
+        fputs(buffer, f);
+    }
+    fflush(f);
+    fsync(fileno(f));
 }
 #endif
