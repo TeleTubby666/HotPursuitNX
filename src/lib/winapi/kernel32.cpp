@@ -128,7 +128,13 @@ HANDLE CreateFileMappingA(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(dwMaximumSizeLow);
     NFS2_USE(lpName);
     NFS2_ASSERT(flProtect & 0x2);
-    File* file = new File(*dynamic_cast<File*>(app->getResource(hFile)));
+    File* source = dynamic_cast<File*>(app->getResource(hFile));
+    if (!source)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateFileMappingA: invalid file handle 0x%x", unsigned(hFile));
+        return 0;
+    }
+    File* file = new File(*source);
     return app->allocateResource(file);
 }
 
@@ -509,6 +515,11 @@ DWORD GetFileSize(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(cpu);
     win32::File* file = dynamic_cast<win32::File*>(app->getResource(hFile));
+    if (!file)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GetFileSize: invalid file handle 0x%x", unsigned(hFile));
+        return 0xffffffff; /* INVALID_FILE_SIZE */
+    }
     if (lpFileSizeHigh)
         *lpFileSizeHigh = 0;
     return file->size();
@@ -859,6 +870,12 @@ x86::reg32 MapViewOfFile(WinApplication* app, x86::CPU& cpu,
     NFS2_ASSERT(dwFileOffsetHigh == 0);
     app->unlockContext(cpu);
     File* file = dynamic_cast<File*>(app->getResource(hFileMappingObject));
+    if (!file)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "MapViewOfFile: invalid mapping handle 0x%x", unsigned(hFileMappingObject));
+        app->lockContext(cpu);
+        return 0;
+    }
     MemMap* result = new MemMap(dwNumberOfBytesToMap);
     void* data = &app->getMemory<void>(result->getBlockStart());
     file->seek(0, x86::sreg32(dwFileOffsetLow));
@@ -1075,6 +1092,11 @@ BOOL SetEndOfFile(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(cpu);
     File* file = dynamic_cast<File*>(app->getResource(hFile));
+    if (!file)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SetEndOfFile: invalid file handle 0x%x", unsigned(hFile));
+        return 0;
+    }
     return file->truncate();
 }
 
@@ -1142,6 +1164,11 @@ DWORD SetFilePointer(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(cpu);
     win32::File* file= dynamic_cast<win32::File*>(app->getResource(hFile));
     NFS2_ASSERT(lpDistanceToMoveHigh == 0);
+    if (!file)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SetFilePointer: invalid file handle 0x%x", unsigned(hFile));
+        return 0xffffffff; /* INVALID_SET_FILE_POINTER */
+    }
     return file->seek(dwMoveMethod, lDistanceToMove);
 }
 
