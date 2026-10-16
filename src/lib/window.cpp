@@ -301,6 +301,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 sendCharacter = true;
                                 break;
                             case 2: /* X: weapons/equipment (NFS3 spike strip) / cycle camera (NFS2) */
+                                sendCharacter = true;
                                 if (g_isNFS3)
                                 {
                                     result->wParam = 'S';
@@ -315,14 +316,17 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             case 3: /* Y: weapons/equipment (horn/siren) */
                                 result->wParam = 'H';
                                 scancode = SDL_SCANCODE_H;
+                                sendCharacter = true;
                                 break;
                             case 4: /* Left stick: reset car */
                                 result->wParam = 'R';
                                 scancode = SDL_SCANCODE_R;
+                                sendCharacter = true;
                                 break;
                             case 5: /* Right stick: cycle camera */
                                 result->wParam = 'C';
                                 scancode = SDL_SCANCODE_C;
+                                sendCharacter = true;
                                 break;
                             case 6: /* L: back/pause */
                                 result->wParam = DWORD(SDLK_ESCAPE);
@@ -332,6 +336,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             case 7: /* R: look behind */
                                 result->wParam = 'B';
                                 scancode = SDL_SCANCODE_B;
+                                sendCharacter = true;
                                 break;
                             case 8: /* ZL: brake/reverse */
                                 result->wParam = 0x28;
@@ -349,6 +354,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             case 11: /* Minus: shift down */
                                 result->wParam = 'Z';
                                 scancode = SDL_SCANCODE_Z;
+                                sendCharacter = true;
                                 break;
                             case 12: /* D-pad left */
                             case 16: /* Left stick left pseudo-button */
@@ -407,7 +413,11 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             {
                                 SDL_Event event2;
                                 event2.type = g_wmCharEvent;
-                                event2.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(result->wParam));
+                                /* WM_CHAR carries the lower-case character, like a real keyboard */
+                                DWORD charValue = result->wParam;
+                                if (charValue >= 'A' && charValue <= 'Z')
+                                    charValue += 'a' - 'A';
+                                event2.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(charValue));
                                 event2.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(result->lParam));
                                 SDL_PushEvent(&event2);
                             }
@@ -509,6 +519,14 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 kevent.key.key = SDLK_B;
                                 kevent.key.scancode = SDL_SCANCODE_B;
                                 SDL_PushEvent(&kevent);
+                                if (lookBehind)
+                                {
+                                    SDL_Event cevent;
+                                    cevent.type = g_wmCharEvent;
+                                    cevent.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>('b'));
+                                    cevent.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(1 | s_scancodeTable[SDL_SCANCODE_B] << 16));
+                                    SDL_PushEvent(&cevent);
+                                }
                                 s_prevLookBehind = lookBehind;
                             }
                             break;
