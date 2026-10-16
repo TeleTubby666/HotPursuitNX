@@ -2,6 +2,7 @@
 #define WINAPI_WRAPPER_H_
 
 #include <lib/winapp.h>
+#include <lib/log.h>
 
 
 namespace win32
@@ -88,6 +89,7 @@ struct Packer<R, void, F, f, I>
     {
         static void stdcall(WinApplication* app, x86::CPU& cpu)
         {
+            watchdogNoteApi(reinterpret_cast<const void*>(f));
             cpu.eax = (*f)(app, cpu, Unpacker<typename Pairs::Type>::unpack(app, cpu.esp + 4 + 4*Pairs::Index)...);
             cpu.esp += 4 + 4*Length<Pairs...>::L;
         }
@@ -102,6 +104,7 @@ struct Packer<void, void, F, f, I>
     {
         static void stdcall(WinApplication* app, x86::CPU& cpu)
         {
+            watchdogNoteApi(reinterpret_cast<const void*>(f));
             (*f)(app, cpu, Unpacker<typename Pairs::Type>::unpack(app, cpu.esp + 4 + 4*Pairs::Index)...);
             cpu.esp += 4 + 4*Length<Pairs...>::L;
         }

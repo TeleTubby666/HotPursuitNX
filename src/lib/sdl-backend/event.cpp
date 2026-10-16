@@ -1,4 +1,5 @@
 #include <lib/event.h>
+#include <lib/log.h>
 #include <lib/thread.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
@@ -72,6 +73,7 @@ x86::reg32 Event::pulse()
 x86::reg32 Event::wait(x86::CPU& cpu, Event** begin, Event** end, bool waitAll, x86::sreg32 timeout)
 {
     NFS2_ASSERT(!waitAll);
+    WatchScope watch("Event::wait", static_cast<unsigned>(timeout), begin != end ? (*begin)->m_name.c_str() : "");
     SDL_LockMutex(s_mutex);
     x86::reg32 result = WAIT_TIMEOUT;
     for (Event** e = begin; e < end; ++e)

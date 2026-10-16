@@ -46,7 +46,8 @@ static void writeLine(const char* prefix, const char* message)
     if (s_logMutex)
         SDL_LockMutex(s_logMutex);
     unsigned long long ms = SDL_GetTicks();
-    fprintf(s_logFile, "[%7llu.%03llu] %s%s\n", ms / 1000, ms % 1000, prefix, message);
+    fprintf(s_logFile, "[%7llu.%03llu] t%llu %s%s\n", ms / 1000, ms % 1000,
+            (unsigned long long) SDL_GetCurrentThreadID(), prefix, message);
     fflush(s_logFile);
     if (s_logMutex)
         SDL_UnlockMutex(s_logMutex);
@@ -82,6 +83,143 @@ void initLog(const char* path)
     SDL_SetLogPriorities(NFS_LOG_LEVEL);
     SDL_SetLogOutputFunction(logOutput, nullptr);
     writeLine("", "log started");
+    startWatchdog();
+}
+
+struct WatchSlot
+{
+    SDL_AtomicInt       used;
+    SDL_ThreadID        tid;
+    const void* volatile    lastApi;
+    const char* volatile    what;
+    const char* volatile    detail;
+    volatile unsigned       arg;
+    volatile Uint64         since;
+    Uint64                  reported;
+};
+
+static const int    MaxSlots = 64;
+static WatchSlot    s_slots[MaxSlots];
+static volatile Uint64  s_heartbeat = 0;
+static Uint64           s_heartbeatReported = 0;
+
+static WatchSlot* currentSlot()
+{
+    static thread_local WatchSlot* slot = nullptr;
+    if (!slot)
+    {
+        for (int i = 0; i < MaxSlots; ++i)
+        {
+            if (SDL_CompareAndSwapAtomicInt(&s_slots[i].used, 0, 1))
+            {
+                s_slots[i].tid = SDL_GetCurrentThreadID();
+                slot = &s_slots[i];
+                break;
+            }
+        }
+        if (!slot)
+            slot = &s_slots[MaxSlots - 1];
+    }
+    return slot;
+}
+
+void watchdogEnter(const char* what, unsigned arg, const char* detail)
+{
+    WatchSlot* slot = currentSlot();
+    slot->arg = arg;
+    slot->detail = detail;
+    slot->since = SDL_GetTicks();
+    slot->reported = 0;
+    slot->what = what;
+}
+
+void watchdogLeave()
+{
+    currentSlot()->what = nullptr;
+}
+
+void watchdogNoteApi(const void* function)
+{
+    currentSlot()->lastApi = function;
+}
+
+void watchdogHeartbeat()
+{
+    s_heartbeat = SDL_GetTicks();
+}
+
+#ifdef __SWITCH__
+extern "C" char __start__;
+static unsigned long long imageBase() { return (unsigned long long) &__start__; }
+#else
+static unsigned long long imageBase() { return 0; }
+#endif
+
+static void dumpThreads(const char* reason)
+{
+    char buffer[256];
+    snprintf(buffer, sizeof(buffer), "WATCHDOG: %s (image base 0x%llx)", reason, imageBase());
+    writeLine("", buffer);
+    for (int i = 0; i < MaxSlots; ++i)
+    {
+        WatchSlot& s = s_slots[i];
+        if (!SDL_GetAtomicInt(&s.used))
+            continue;
+        const char* what = s.what;
+        unsigned long long api = (unsigned long long) s.lastApi;
+        if (api >= imageBase() && imageBase() != 0)
+            api -= imageBase();
+        if (what)
+            snprintf(buffer, sizeof(buffer), "WATCHDOG:   thread %llu: blocked %llu ms in %s(%u) %s, last api +0x%llx",
+                     (unsigned long long) s.tid, (unsigned long long) (SDL_GetTicks() - s.since), what, s.arg,
+                     s.detail ? s.detail : "", api);
+        else
+            snprintf(buffer, sizeof(buffer), "WATCHDOG:   thread %llu: running, last api +0x%llx",
+                     (unsigned long long) s.tid, api);
+        writeLine("", buffer);
+    }
+}
+
+static int SDLCALL watchdogMain(void*)
+{
+    for (;;)
+    {
+        SDL_Delay(1000);
+        Uint64 now = SDL_GetTicks();
+        bool dump = false;
+        char reason[128];
+        reason[0] = 0;
+        for (int i = 0; i < MaxSlots; ++i)
+        {
+            WatchSlot& s = s_slots[i];
+            if (SDL_GetAtomicInt(&s.used) && s.what && now - s.since > 4000 && now - s.reported > 5000)
+            {
+                s.reported = now;
+                snprintf(reason, sizeof(reason), "a thread is blocked for more than 4 s");
+                dump = true;
+            }
+        }
+        if (s_heartbeat && now - s_heartbeat > 4000 && now - s_heartbeatReported > 5000)
+        {
+            s_heartbeatReported = now;
+            snprintf(reason, sizeof(reason), "main loop has not pumped messages for %llu ms", (unsigned long long) (now - s_heartbeat));
+            dump = true;
+        }
+        if (dump)
+            dumpThreads(reason);
+    }
+    return 0;
+}
+
+void startWatchdog()
+{
+    static bool started = false;
+    if (started || !s_logFile)
+        return;
+    started = true;
+    SDL_Thread* t = SDL_CreateThread(watchdogMain, "watchdog", nullptr);
+    if (t)
+        SDL_DetachThread(t);
 }
 
 void logPrintf(const char* fmt, ...)

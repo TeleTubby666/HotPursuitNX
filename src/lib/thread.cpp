@@ -1,4 +1,5 @@
 #include <lib/thread.h>
+#include <lib/log.h>
 #include <lib/event.h>
 #include <lib/window.h>
 #include <SDL3/SDL.h>
@@ -90,6 +91,7 @@ x86::reg32 Thread::threadId() const
 
 void Thread::sleep(x86::reg32 milliseconds)
 {
+    WatchScope watch("Sleep", milliseconds);
     SDL_Delay(milliseconds);
 }
 

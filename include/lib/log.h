@@ -22,6 +22,33 @@ void logPrintf(const char* fmt, ...)
 #endif
     ;
 
+/*
+ * Watchdog for hangs (the process freezes without crashing).
+ *
+ * Threads announce blocking operations with WatchScope; the main loop calls
+ * watchdogHeartbeat() whenever it pumps messages. A background thread reports
+ * threads that stay blocked for several seconds, or a main loop that stopped
+ * pumping, together with the last Win32 API function every thread called
+ * (as an offset that aarch64-none-elf-addr2line can resolve).
+ */
+void startWatchdog();
+void watchdogHeartbeat();
+void watchdogEnter(const char* what, unsigned arg, const char* detail);
+void watchdogLeave();
+void watchdogNoteApi(const void* function);
+
+struct WatchScope
+{
+    WatchScope(const char* what, unsigned arg = 0, const char* detail = 0)
+    {
+        watchdogEnter(what, arg, detail);
+    }
+    ~WatchScope()
+    {
+        watchdogLeave();
+    }
+};
+
 }
 
 #endif

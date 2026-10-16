@@ -1,4 +1,5 @@
 #include <lib/mutex.h>
+#include <lib/log.h>
 #include <lib/thread.h>
 #include <SDL3/SDL.h>
 
@@ -20,7 +21,10 @@ Mutex::~Mutex()
 
 void Mutex::lock()
 {
-    SDL_LockMutex(m_mutex);
+    {
+        WatchScope watch("Mutex::lock", 0, m_name.c_str());
+        SDL_LockMutex(m_mutex);
+    }
     NFS2_ASSERT(m_owner == 0 || m_owner == Thread::currentThreadId());
     if (m_owner == 0)
     {

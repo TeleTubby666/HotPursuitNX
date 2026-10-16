@@ -1,4 +1,5 @@
 #include <lib/window.h>
+#include <lib/log.h>
 #include <lib/thread.h>
 #ifdef __SWITCH__
 #include <lib/gamepad.h>
@@ -92,6 +93,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
     SDL_Event event;
     for (;;)
     {
+        watchdogHeartbeat();
 #ifdef __SWITCH__
         bool receivedEvent = SDL_WaitEventTimeout(&event, 8);
 #else
