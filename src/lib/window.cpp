@@ -52,6 +52,37 @@ static const x86::reg8 s_scancodeTable[100] =
     0x50, 0x51, 0x4B, 0x4C, 0x4D, 0x47, 0x48, 0x49, 0x52, 0x53
 };
 
+#ifdef __SWITCH__
+/*
+ * Stick directions act as keys of their own, so that they can be assigned in
+ * the controls menu like any other button. The keys are digits, which the
+ * game does not use by default.
+ */
+static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode scancode)
+{
+    if (state == active)
+        return;
+    state = active;
+
+    SDL_Event kevent;
+    SDL_zero(kevent);
+    kevent.type = active ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+    kevent.key.key = key;
+    kevent.key.scancode = scancode;
+    SDL_PushEvent(&kevent);
+
+    if (active)
+    {
+        SDL_Event cevent;
+        SDL_zero(cevent);
+        cevent.type = g_wmCharEvent;
+        cevent.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(key));
+        cevent.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(1 | s_scancodeTable[scancode] << 16));
+        SDL_PushEvent(&cevent);
+    }
+}
+#endif
+
 
 WindowClass::WindowClass(x86::reg32 windowProc)
     :   m_wndProc(windowProc)
@@ -330,9 +361,9 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 scancode = SDL_SCANCODE_C;
                                 sendCharacter = true;
                                 break;
-                            case 6: /* L: back/pause */
-                                result->wParam = DWORD(SDLK_ESCAPE);
-                                scancode = SDL_SCANCODE_ESCAPE;
+                            case 6: /* L: free key (Q) */
+                                result->wParam = 'Q';
+                                scancode = SDL_SCANCODE_Q;
                                 sendCharacter = true;
                                 break;
                             case 7: /* R: look behind */
@@ -510,26 +541,24 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                         }
 #endif
 #ifdef __SWITCH__
-                        if (event.jaxis.axis == 3)
+                        if (event.jaxis.axis >= 1 && event.jaxis.axis <= 3)
                         {
-                            static bool s_prevLookBehind = false;
-                            bool lookBehind = (event.jaxis.value > 20000);
-                            if (lookBehind != s_prevLookBehind)
+                            static bool s_lStickUp, s_lStickDown, s_rStickLeft, s_rStickRight, s_rStickUp, s_rStickDown;
+                            const int value = event.jaxis.value;
+                            switch (event.jaxis.axis)
                             {
-                                SDL_Event kevent;
-                                kevent.type = lookBehind ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
-                                kevent.key.key = SDLK_B;
-                                kevent.key.scancode = SDL_SCANCODE_B;
-                                SDL_PushEvent(&kevent);
-                                if (lookBehind)
-                                {
-                                    SDL_Event cevent;
-                                    cevent.type = g_wmCharEvent;
-                                    cevent.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>('b'));
-                                    cevent.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(1 | s_scancodeTable[SDL_SCANCODE_B] << 16));
-                                    SDL_PushEvent(&cevent);
-                                }
-                                s_prevLookBehind = lookBehind;
+                            case 1: /* left stick vertical: keys 1 (up), 2 (down) */
+                                stickKey(s_lStickUp, value < -20000, SDLK_1, SDL_SCANCODE_1);
+                                stickKey(s_lStickDown, value > 20000, SDLK_2, SDL_SCANCODE_2);
+                                break;
+                            case 2: /* right stick horizontal: keys 3 (left), 4 (right) */
+                                stickKey(s_rStickLeft, value < -20000, SDLK_3, SDL_SCANCODE_3);
+                                stickKey(s_rStickRight, value > 20000, SDLK_4, SDL_SCANCODE_4);
+                                break;
+                            case 3: /* right stick vertical: key 5 (up), B (down, look behind) */
+                                stickKey(s_rStickUp, value < -20000, SDLK_5, SDL_SCANCODE_5);
+                                stickKey(s_rStickDown, value > 20000, SDLK_B, SDL_SCANCODE_B);
+                                break;
                             }
                             break;
                         }

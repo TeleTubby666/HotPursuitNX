@@ -16,6 +16,23 @@
  */
 #define NFS_LOG_LEVEL   SDL_LOG_PRIORITY_DEBUG
 
+/*
+ * Start of the memory region that contains addr. For addresses in the program
+ * image this is the load base of the code (the .elf is linked at 0), so
+ * "addr - textBase(addr)" can be given to addr2line.
+ */
+static unsigned long long textBase(unsigned long long addr)
+{
+#ifdef __SWITCH__
+    MemoryInfo info;
+    u32 pageInfo;
+    if (R_SUCCEEDED(svcQueryMemory(&info, &pageInfo, addr)))
+        return info.addr;
+#endif
+    (void)addr;
+    return 0;
+}
+
 namespace win32
 {
 
@@ -148,12 +165,10 @@ void watchdogHeartbeat()
     s_heartbeat = SDL_GetTicks();
 }
 
-#ifdef __SWITCH__
-extern "C" char __start__;
-static unsigned long long imageBase() { return (unsigned long long) &__start__; }
-#else
-static unsigned long long imageBase() { return 0; }
-#endif
+static unsigned long long imageBase()
+{
+    return textBase((unsigned long long) &textBase);
+}
 
 static void dumpThreads(const char* reason)
 {
@@ -167,7 +182,7 @@ static void dumpThreads(const char* reason)
             continue;
         const char* what = s.what;
         unsigned long long api = (unsigned long long) s.lastApi;
-        if (api >= imageBase() && imageBase() != 0)
+        if (imageBase() != 0 && api >= imageBase())
             api -= imageBase();
         if (what)
             snprintf(buffer, sizeof(buffer), "WATCHDOG:   thread %llu: blocked %llu ms in %s(%u) %s, last api +0x%llx",
@@ -192,7 +207,9 @@ static int SDLCALL watchdogMain(void*)
         for (int i = 0; i < MaxSlots; ++i)
         {
             WatchSlot& s = s_slots[i];
-            if (SDL_GetAtomicInt(&s.used) && s.what && now - s.since > 4000 && now - s.reported > 5000)
+            /* worker threads normally sleep in infinite waits; only report real stalls */
+            if (SDL_GetAtomicInt(&s.used) && s.what && s.arg != 0xffffffffu
+                && now - s.since > 4000 && now - s.reported > 5000)
             {
                 s.reported = now;
                 snprintf(reason, sizeof(reason), "a thread is blocked for more than 4 s");
@@ -259,15 +276,13 @@ void nfs2_assertFailed(const char* expr, const char* file, int line, const char*
  * after subtracting the load base. The handler runs on a small stack, so it
  * only uses a short buffer.
  */
-extern "C" char __start__;
-
 extern "C" void __libnx_exception_handler(ThreadExceptionDump* ctx)
 {
     FILE* f = win32::s_logFile;
     if (!f)
         return;
     char buffer[256];
-    unsigned long long base = (unsigned long long) &__start__;
+    unsigned long long base = textBase((unsigned long long) ctx->pc.x);
     snprintf(buffer, sizeof(buffer),
              "CRASH: desc=%u pc=0x%llx lr=0x%llx sp=0x%llx far=0x%llx esr=0x%x\n",
              (unsigned) ctx->error_desc,

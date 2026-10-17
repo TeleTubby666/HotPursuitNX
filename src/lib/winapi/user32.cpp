@@ -319,11 +319,39 @@ int GetSystemMetrics(WinApplication* app, x86::CPU& cpu,
     switch(nIndex)
     {
     case 0: //SM_CXSCREEN
+    case 16: //SM_CXFULLSCREEN
+    case 61: //SM_CXMAXIMIZED
+    case 78: //SM_CXVIRTUALSCREEN
         return 800;
     case 1: //SM_CYSCREEN
+    case 17: //SM_CYFULLSCREEN
+    case 62: //SM_CYMAXIMIZED
+    case 79: //SM_CYVIRTUALSCREEN
         return 600;
+    case 2: //SM_CXVSCROLL
+    case 3: //SM_CYHSCROLL
+        return 16;
+    case 4: //SM_CYCAPTION
+    case 15: //SM_CYMENU
+        return 19;
+    case 5: //SM_CXBORDER
+    case 6: //SM_CYBORDER
+        return 1;
+    case 7: //SM_CXDLGFRAME
+    case 8: //SM_CYDLGFRAME
+        return 3;
+    case 11: //SM_CXICON
+    case 12: //SM_CYICON
+        return 32;
+    case 32: //SM_CXSIZEFRAME
+    case 33: //SM_CYSIZEFRAME
+        return 4;
+    case 43: //SM_CMOUSEBUTTONS
+        return 3;
+    case 80: //SM_CMONITORS
+        return 1;
     default:
-        NFS2_ASSERT(false);
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "GetSystemMetrics: unhandled index %d", nIndex);
         return 0;
     }
 }

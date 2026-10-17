@@ -50,8 +50,10 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | Right stick click (R3) | Change camera view |
 | Right stick down / R | Look behind |
 | Left stick click (L3) | Reset car |
-| Plus (+) | Pause menu |
-| L | Back (menus) / Pause |
+| Plus (+) | Pause menu / back (Esc, cannot be assigned) |
+| L | Free key (Q), assignable in the controls menu |
+| Left stick up / down | Free keys 1 / 2, assignable |
+| Right stick up / left / right | Free keys 5 / 3 / 4, assignable |
 | Minus (-) | Shift down (manual) |
 
 ## Building from source
