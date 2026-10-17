@@ -19,6 +19,7 @@ Uint32 g_userEvent1  = 0;
 Uint32 g_userEvent2  = 0;
 Uint32 g_wmCharEvent = 0;
 bool g_isNFS3        = false;
+bool g_controlsScreen = false;
 
 static struct CustomEventRegistrar
 {
@@ -182,6 +183,9 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 
                         result->lParam = 1;
 
+                        if (sym >= SDLK_F1 && sym <= SDLK_F12)
+                            result->wParam = 0x70 + (sym - SDLK_F1);
+
                         switch (sym)
                         {
                             case SDLK_LSHIFT:
@@ -321,12 +325,40 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
                             BOOL sendCharacter = false;
 
+                            /*
+                             * A (Enter) and Plus (Esc) are the keys the key assignment screens use
+                             * themselves, so they could never be assigned. They also send F5 / F6.
+                             * On the assignment screens, the press that follows an Enter is the one
+                             * that gets assigned, so it sends only the F key.
+                             */
+                            static bool s_ctrlArmed = false;
+                            static bool s_altOnly[2] = { false, false };
+                            bool wasArmed = false;
+                            if (event.jbutton.down)
+                            {
+                                wasArmed = s_ctrlArmed && g_controlsScreen;
+                                s_ctrlArmed = false;
+                            }
+                            int altKey = -1; /* index into s_altOnly of an extra F key to send */
+
                             switch (event.jbutton.button)
                             {
-                            case 0: /* A: nitrous / accept */
+                            case 0: /* A: nitrous / accept (+ F5) */
+                                if (event.jbutton.down)
+                                {
+                                    s_altOnly[0] = wasArmed;
+                                    s_ctrlArmed = g_controlsScreen && !wasArmed;
+                                }
+                                if (s_altOnly[0])
+                                {
+                                    result->wParam = 0x74;
+                                    scancode = SDL_SCANCODE_F5;
+                                    break;
+                                }
                                 result->wParam = DWORD(SDLK_RETURN);
                                 scancode = SDL_SCANCODE_RETURN;
                                 sendCharacter = true;
+                                altKey = 0;
                                 break;
                             case 1: /* B: handbrake */
                                 result->wParam = DWORD(SDLK_SPACE);
@@ -379,10 +411,19 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = 0x26;
                                 scancode = SDL_SCANCODE_UP;
                                 break;
-                            case 10: /* Plus: pause menu */
+                            case 10: /* Plus: pause menu (+ F6) */
+                                if (event.jbutton.down)
+                                    s_altOnly[1] = wasArmed;
+                                if (s_altOnly[1])
+                                {
+                                    result->wParam = 0x75;
+                                    scancode = SDL_SCANCODE_F6;
+                                    break;
+                                }
                                 result->wParam = DWORD(SDLK_ESCAPE);
                                 scancode = SDL_SCANCODE_ESCAPE;
                                 sendCharacter = true;
+                                altKey = 1;
                                 break;
                             case 11: /* Minus: shift down */
                                 result->wParam = 'Z';
@@ -437,6 +478,18 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 #endif
                             result->message = event.jbutton.down ? WM_KEYDOWN : WM_KEYUP;
                             result->hWindow = event.user.windowID;
+
+#ifdef __SWITCH__
+                            if (altKey >= 0)
+                            {
+                                SDL_Event aevent;
+                                SDL_zero(aevent);
+                                aevent.type = event.jbutton.down ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
+                                aevent.key.key = altKey == 0 ? SDLK_F5 : SDLK_F6;
+                                aevent.key.scancode = altKey == 0 ? SDL_SCANCODE_F5 : SDL_SCANCODE_F6;
+                                SDL_PushEvent(&aevent);
+                            }
+#endif
 
                             if (event.jbutton.down
 #ifdef __SWITCH__

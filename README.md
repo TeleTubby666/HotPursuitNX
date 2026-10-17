@@ -44,13 +44,13 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | ZR | Accelerate |
 | ZL | Brake / reverse |
 | B | Handbrake |
-| A | Nitrous / Confirm (menus) |
+| A | Nitrous / Confirm (menus). Also sends F5 |
 | X | Weapons / Equipment: Spike strip (NFS3) / Cycle camera (NFS2) |
 | Y | Weapons / Equipment: Horn / siren |
 | Right stick click (R3) | Change camera view |
 | Right stick down / R | Look behind |
 | Left stick click (L3) | Reset car |
-| Plus (+) | Pause menu / back (Esc, cannot be assigned) |
+| Plus (+) | Pause menu / back (Esc). Also sends F6 |
 | L | Free key (Q), assignable in the controls menu |
 | Left stick up / down | Free keys 1 / 2, assignable |
 | Right stick up / left / right | Free keys 5 / 3 / 4, assignable |
@@ -79,3 +79,7 @@ cmake --build build-switch -j$(nproc)
 
 The build artefacts are written to `build-switch/nfs2se.nro` and
 `build-switch/nfs3hp.nro`.
+
+### Assigning A and Plus
+
+Enter (A) and Esc (Plus) are used by the controls menu itself. On the key assignment screens, the button pressed right after a confirm sends only F5 (A) or F6 (Plus) instead, so those two can be assigned too. In the race they send Enter/Esc and F5/F6 at the same time.

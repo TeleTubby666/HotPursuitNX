@@ -9,6 +9,8 @@ namespace win32
 {
 
 extern bool g_isNFS3;
+/* true while the key assignment screens (hardkeys/funkeys) are the current menu */
+extern bool g_controlsScreen;
 extern Uint32 g_userEvent;
 extern Uint32 g_userEvent1;
 extern Uint32 g_userEvent2;

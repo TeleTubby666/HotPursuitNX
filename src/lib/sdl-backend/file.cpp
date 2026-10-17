@@ -1,4 +1,5 @@
 #include <lib/file.h>
+#include <lib/window.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -309,6 +310,14 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
     else
     {
         SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "opening file %s", m_filename.c_str());
+#ifdef __SWITCH__
+        /* remember whether a key assignment screen is shown (see window.cpp) */
+        std::string lower(m_filename);
+        std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".mnu") == 0)
+            g_controlsScreen = lower.find("hardkeys.mnu") != std::string::npos
+                            || lower.find("funkeys.mnu") != std::string::npos;
+#endif
     }
 }
 
