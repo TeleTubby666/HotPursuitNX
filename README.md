@@ -83,3 +83,7 @@ The build artefacts are written to `build-switch/nfs2se.nro` and
 ### Assigning A and Plus
 
 Enter (A) and Esc (Plus) are used by the controls menu itself. On the key assignment screens, the button pressed right after a confirm sends only F5 (A) or F6 (Plus) instead, so those two can be assigned too. In the race they send Enter/Esc and F5/F6 at the same time.
+
+### Name entry / keyboard
+
+Hold L3 and press R3 (or the other way round) to open the Switch keyboard. The text you enter replaces the current content of the active text field (for example the driver name).
