@@ -663,9 +663,18 @@ FARPROC GetProcAddress(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(cpu);
     win32::LibraryHandle* libraryHandle = dynamic_cast<win32::LibraryHandle*>(app->getResource(hModule));
+    if (!libraryHandle)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GetProcAddress(%s): invalid module handle 0x%x", lpProcName, unsigned(hModule));
+        return 0;
+    }
     win32::Library* l = libraryHandle->getLibrary();
     win32::Library::Symbol s = (*l)[lpProcName];
-    NFS2_ASSERT(s.first);
+    if (!s.first)
+    {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GetProcAddress: symbol %s not found", lpProcName);
+        return 0;
+    }
     return s.first;
 }
 
@@ -855,8 +864,10 @@ HMODULE LoadLibraryA(WinApplication* app, x86::CPU& cpu,
     else
     {
         delete lib;
-        //NFS2_ASSERT(false);
-        return -1;
+        /* LoadLibrary returns NULL on failure; the game's check for that (e.g. for RASAPI32, the
+           dial-up networking library) must see 0, not a bogus handle */
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "library %s is not available", lpLibFileName);
+        return 0;
     }
 }
 
