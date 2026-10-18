@@ -22219,7 +22219,12 @@ void Application::sub_44a2d0(WinApplication* app, x86::CPU& cpu)
   NFS2_USE(cpu);
   NFS2_USE(app);
     /* hand-written diagnostics: menu item (eax) receives key (dx) */
-    win32::logPrintf("menu key: item type=0x%x key=0x%x capture=%u", (unsigned) app->getMemory<x86::reg16>(cpu.eax + 0x1a), (unsigned) cpu.dx, (unsigned) app->getMemory<x86::reg32>(0x558b14));
+    {
+        unsigned itemType = app->getMemory<x86::reg16>(cpu.eax + 0x1a);
+        unsigned itemClass = itemType + app->getMemory<x86::reg16>(cpu.eax + 0x18);
+        unsigned handler = app->getMemory<x86::reg32>(0x604ee0 + 188 * itemClass + 0x30);
+        win32::logPrintf("menu key: item type=0x%x class=0x%x handler=0x%x key=0x%x capture=%u", itemType, itemClass, handler, (unsigned) cpu.dx, (unsigned) app->getMemory<x86::reg32>(0x558b14));
+    }
     // 0044a2d0  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
