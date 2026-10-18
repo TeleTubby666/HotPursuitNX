@@ -6,6 +6,10 @@
 #include <lib/window.h>
 #include <nfs3hp.h>
 #include <cstdlib>
+#include <cstdio>
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 #include <string>
 
 #ifndef __SWITCH__
@@ -66,9 +70,37 @@ int main(int argc, char* argv[])
         app.execute();
     }
 #ifdef __SWITCH__
-    /* tearing down SDL/Vulkan here has been crashing on exit; the system cleans up anyway */
-    win32::logPrintf("game finished, exiting");
-    _Exit(0);
+    /*
+     * The way out of the process is still being worked out: exiting crashes on the console.
+     * sdmc:/switch/nfs3hp/exitmode.txt (a single digit) selects the variant to try.
+     */
+    int exitMode = 1;
+    if (FILE* f = fopen("sdmc:/switch/nfs3hp/exitmode.txt", "r"))
+    {
+        int c = fgetc(f);
+        if (c >= '0' && c <= '4')
+            exitMode = c - '0';
+        fclose(f);
+    }
+    win32::logPrintf("game finished, exit mode %d", exitMode);
+    switch (exitMode)
+    {
+    case 0: /* return from main without any teardown */
+        return 0;
+    case 1:
+        _Exit(0);
+    case 2: /* hard exit of the process, skipping libnx cleanup */
+        svcExitProcess();
+        break;
+    case 3: /* SDL teardown first */
+        SDL_Quit();
+        win32::logPrintf("SDL_Quit done");
+        return 0;
+    case 4: /* tear down only the video system */
+        SDL_QuitSubSystem(SDL_INIT_VIDEO);
+        win32::logPrintf("video subsystem closed");
+        return 0;
+    }
 #endif
     SDL_Quit();
     return 0;
