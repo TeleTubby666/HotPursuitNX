@@ -65,6 +65,11 @@ int main(int argc, char* argv[])
         app.addRegistryKey(win32::HKEY_LOCAL_MACHINE, "SOFTWARE\\Electronic Arts\\Need For Speed III", "Hardware Acceleration", new win32::RegistryValue(x86::reg32(1)));
         app.execute();
     }
+#ifdef __SWITCH__
+    /* tearing down SDL/Vulkan here has been crashing on exit; the system cleans up anyway */
+    win32::logPrintf("game finished, exiting");
+    _Exit(0);
+#endif
     SDL_Quit();
     return 0;
 }

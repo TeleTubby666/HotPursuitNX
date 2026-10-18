@@ -4,6 +4,7 @@
 #ifdef __SWITCH__
 #include <lib/gamepad.h>
 #include <switch.h>
+#include <vector>
 #endif
 #include <SDL3/SDL.h>
 #include <cstring>
@@ -56,6 +57,8 @@ static const x86::reg8 s_scancodeTable[100] =
 
 #ifdef __SWITCH__
 static bool s_keyboardRequested = false;
+static std::vector<int> s_textQueue;
+static Uint64 s_textLast = 0;
 
 /*
  * Opens the system keyboard (L3+R3) and feeds the typed text to the game as WM_CHAR
@@ -72,7 +75,7 @@ static void runSwitchKeyboard()
     }
     swkbdConfigMakePresetDefault(&kbd);
     swkbdConfigSetGuideText(&kbd, "Name");
-    swkbdConfigSetStringLenMax(&kbd, 15);
+    swkbdConfigSetStringLenMax(&kbd, 10);
     char text[64] = "";
     Result rc = swkbdShow(&kbd, text, sizeof(text));
     swkbdClose(&kbd);
@@ -83,8 +86,26 @@ static void runSwitchKeyboard()
     }
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "software keyboard returned \"%s\"", text);
 
-    const intptr_t lparam = 1;
-    for (int i = 0; i < 20; ++i)
+    /* the game's input queue is small: hand the keys over one at a time (see pumpSwitchText) */
+    s_textQueue.clear();
+    for (int i = 0; i < 12; ++i)
+        s_textQueue.push_back(-1);
+    for (const char* c = text; *c; ++c)
+        s_textQueue.push_back(static_cast<unsigned char>(*c));
+}
+
+/* delivers one queued key (-1 = Backspace) every 40 ms */
+static void pumpSwitchText()
+{
+    if (s_textQueue.empty())
+        return;
+    Uint64 now = SDL_GetTicks();
+    if (now - s_textLast < 40)
+        return;
+    s_textLast = now;
+    int c = s_textQueue.front();
+    s_textQueue.erase(s_textQueue.begin());
+    if (c < 0)
     {
         SDL_Event bs;
         SDL_zero(bs);
@@ -95,13 +116,13 @@ static void runSwitchKeyboard()
         bs.type = SDL_EVENT_KEY_UP;
         SDL_PushEvent(&bs);
     }
-    for (const char* c = text; *c; ++c)
+    else
     {
         SDL_Event ch;
         SDL_zero(ch);
         ch.type = g_wmCharEvent;
-        ch.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(static_cast<unsigned char>(*c)));
-        ch.user.data2 = reinterpret_cast<void*>(lparam);
+        ch.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(c));
+        ch.user.data2 = reinterpret_cast<void*>(static_cast<intptr_t>(1));
         SDL_PushEvent(&ch);
     }
 }
@@ -203,6 +224,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
     {
         watchdogHeartbeat();
 #ifdef __SWITCH__
+        pumpSwitchText();
         if (s_keyboardRequested)
         {
             s_keyboardRequested = false;
