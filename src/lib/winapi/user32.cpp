@@ -348,6 +348,8 @@ int GetSystemMetrics(WinApplication* app, x86::CPU& cpu,
         return 4;
     case 43: //SM_CMOUSEBUTTONS
         return 3;
+    case 63: //SM_CLEANBOOT (0 = normal boot)
+        return 0;
     case 80: //SM_CMONITORS
         return 1;
     default:

@@ -1,3 +1,4 @@
+#include <SDL3/SDL.h>
 #include <winapi/wsock32.h>
 #include <x86.h>
 #include <lib/socket.h>
@@ -208,9 +209,12 @@ int closesocket(WinApplication* app, x86::CPU& cpu, SOCKET s)
 SOCKET socket(WinApplication* app, x86::CPU& cpu, int af, int type, int protocol)
 {
     NFS2_USE(cpu);
-    NFS2_ASSERT(af == 6);    // AF_IPX
-    NFS2_ASSERT(type == 2);  // SOCK_DGRAM
-    NFS2_ASSERT(protocol == 1000);
+    if (af != 6 || type != 2 || protocol != 1000) // only AF_IPX / SOCK_DGRAM is implemented
+    {
+        /* e.g. the "download car" menu entry wants an internet connection */
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "socket(%d, %d, %d) is not supported, failing", af, type, protocol);
+        return 0xffffffffu; // INVALID_SOCKET
+    }
     return app->allocateResource(new Socket());
 }
 
@@ -356,8 +360,7 @@ int WSAGetLastError(WinApplication* app, x86::CPU& cpu)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_ASSERT(false);
-    return -1;
+    return 10047; // WSAEAFNOSUPPORT
 }
 
 }}

@@ -311,12 +311,14 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
     {
         SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "opening file %s", m_filename.c_str());
 #ifdef __SWITCH__
-        /* remember whether a key assignment screen is shown (see window.cpp) */
+        /* The front end loads all menus when it starts (setup.mnu first), and a race loads
+           its track data. window.cpp uses this to tell menus from racing. */
         std::string lower(m_filename);
         std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".mnu") == 0)
-            g_controlsScreen = lower.find("hardkeys.mnu") != std::string::npos
-                            || lower.find("funkeys.mnu") != std::string::npos;
+        if (lower.find("/menus/setup.mnu") != std::string::npos)
+            g_inRace = false;
+        else if (lower.find("/tracks/") != std::string::npos && lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".frd") == 0)
+            g_inRace = true;
 #endif
     }
 }

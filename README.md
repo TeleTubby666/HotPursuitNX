@@ -54,7 +54,7 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | L | Free key (Q), assignable in the controls menu |
 | Left stick up / down | Free keys 1 / 2, assignable |
 | Right stick up / left / right | Free keys 5 / 3 / 4, assignable |
-| Minus (-) | Shift down (manual) |
+| Minus (-) | Shift down (manual); hold: arm key assignment |
 
 ## Building from source
 
@@ -80,9 +80,11 @@ cmake --build build-switch -j$(nproc)
 The build artefacts are written to `build-switch/nfs2se.nro` and
 `build-switch/nfs3hp.nro`.
 
-### Assigning A and Plus
+### Assigning A, B and Plus
 
-Enter (A) and Esc (Plus) are used by the controls menu itself. On the key assignment screens, the button pressed right after a confirm sends only F5 (A) or F6 (Plus) instead, so those two can be assigned too. In the race they send Enter/Esc and F5/F6 at the same time.
+A (Enter), B (Esc in menus) and Plus (Esc) are used by the controls menu itself. Select the entry with A, then **hold Minus for about a second and let go**: the next A, B or Plus press (within 10 s) is then sent as an assignable key (F5, Space, F6). A short tap on Minus is the normal gear shift. In a race, A and Plus also send F5 / F6.
+
+B goes back (Esc) in menus and is the handbrake (Space) during a race. Race and menu are told apart by the game loading track data / the menus.
 
 ### Name entry / keyboard
 

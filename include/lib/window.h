@@ -9,8 +9,8 @@ namespace win32
 {
 
 extern bool g_isNFS3;
-/* true while the key assignment screens (hardkeys/funkeys) are the current menu */
-extern bool g_controlsScreen;
+/* true from the moment a track is loaded until the front end is loaded again (see file.cpp) */
+extern bool g_inRace;
 extern Uint32 g_userEvent;
 extern Uint32 g_userEvent1;
 extern Uint32 g_userEvent2;
