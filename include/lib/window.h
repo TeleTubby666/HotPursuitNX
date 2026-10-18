@@ -11,6 +11,9 @@ namespace win32
 extern bool g_isNFS3;
 /* true from the moment a track is loaded until the front end is loaded again (see file.cpp) */
 extern bool g_inRace;
+
+/* called by the game when a text input field gets focus (opens the system keyboard on the Switch) */
+void requestTextInput(unsigned buffer);
 extern Uint32 g_userEvent;
 extern Uint32 g_userEvent1;
 extern Uint32 g_userEvent2;

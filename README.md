@@ -86,4 +86,4 @@ The game tells menus and races apart by what it loads (track data starts a race,
 
 ### Name entry / keyboard
 
-Hold L3 and press R3 (or the other way round) to open the Switch keyboard. The text you enter replaces the current content of the active text field (for example the driver name).
+The Switch keyboard opens by itself when the game starts a text field (the driver name). The text you enter replaces the current content. L3 and R3 pressed together open it by hand; a single click of L3 or R3 acts when released.

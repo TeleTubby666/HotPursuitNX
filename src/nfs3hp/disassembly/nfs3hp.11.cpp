@@ -1,5 +1,6 @@
 #include "nfs3hp.h"
 #include <lib/thread.h>
+#include <lib/window.h>
 
 namespace nfs3hp
 {
@@ -20250,6 +20251,8 @@ void Application::sub_444c20(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+    /* hand-written hook: this function starts a text input field (player name); on the Switch it opens the system keyboard */
+    requestTextInput(app->getMemory<x86::reg32>(cpu.esp + 8));
     // 00444c20  56                     -push esi
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.esi;
     cpu.esp -= 4;

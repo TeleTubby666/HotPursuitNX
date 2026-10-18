@@ -107,6 +107,22 @@ static void runSwitchKeyboard()
 }
 #endif
 
+void requestTextInput(unsigned buffer)
+{
+#ifdef __SWITCH__
+    /* a field that is re-announced every frame must not reopen the keyboard after cancelling */
+    static Uint64 s_lastCall = 0;
+    Uint64 now = SDL_GetTicks();
+    bool fresh = s_lastCall == 0 || now - s_lastCall > 1000;
+    s_lastCall = now;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "text input field activated (buffer 0x%x)%s", buffer, fresh ? "" : " [repeat]");
+    if (fresh)
+        s_keyboardRequested = true;
+#else
+    (void) buffer;
+#endif
+}
+
 #ifdef __SWITCH__
 /*
  * Stick directions act as keys of their own, so that they can be assigned in
