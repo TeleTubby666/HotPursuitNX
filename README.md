@@ -44,17 +44,17 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | ZR | Accelerate |
 | ZL | Brake / reverse |
 | B | Handbrake |
-| A | Nitrous / Confirm (menus). Also sends F5 |
+| A | Nitrous / Confirm (menus) |
 | X | Weapons / Equipment: Spike strip (NFS3) / Cycle camera (NFS2) |
 | Y | Weapons / Equipment: Horn / siren |
 | Right stick click (R3) | Change camera view |
 | Right stick down / R | Look behind |
 | Left stick click (L3) | Reset car |
-| Plus (+) | Pause menu / back (Esc). Also sends F6 |
+| Plus (+) | Pause menu / back (Esc) |
 | L | Free key (Q), assignable in the controls menu |
 | Left stick up / down | Free keys 1 / 2, assignable |
 | Right stick up / left / right | Free keys 5 / 3 / 4, assignable |
-| Minus (-) | Shift down (manual); hold: arm key assignment |
+| Minus (-) | Shift down (manual) |
 
 ## Building from source
 
@@ -80,11 +80,9 @@ cmake --build build-switch -j$(nproc)
 The build artefacts are written to `build-switch/nfs2se.nro` and
 `build-switch/nfs3hp.nro`.
 
-### Assigning A, B and Plus
+### Menu and race
 
-A (Enter), B (Esc in menus) and Plus (Esc) are used by the controls menu itself. Select the entry with A, then **hold Minus for about a second and let go**: the next A, B or Plus press (within 10 s) is then sent as an assignable key (F5, Space, F6). A short tap on Minus is the normal gear shift. In a race, A and Plus also send F5 / F6.
-
-B goes back (Esc) in menus and is the handbrake (Space) during a race. Race and menu are told apart by the game loading track data / the menus.
+The game tells menus and races apart by what it loads (track data starts a race, the front end ends it). A is Enter in both. B goes back (Esc) in menus and is the handbrake (Space) in a race. Plus is Esc (pause / back). Enter and Esc are what the controls menu itself uses, so A, B and Plus cannot be assigned there; every other button can.
 
 ### Name entry / keyboard
 

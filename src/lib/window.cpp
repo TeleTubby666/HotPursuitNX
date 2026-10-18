@@ -384,29 +384,10 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     {
                         if (event.jbutton.which == 0)
                         {
-                            bool minusTap = false; /* Switch: Minus tap is delivered on release */
 #ifdef __SWITCH__
                             SDL_Scancode scancode = SDL_SCANCODE_UNKNOWN;
                             BOOL sendCharacter = false;
 
-                            /*
-                             * Enter (A), Esc (B in menus, Plus) are what the key assignment screens use
-                             * themselves, so those buttons could never be assigned. Holding Minus for about
-                             * a second arms the next A, B or Plus press: it then sends only an assignable
-                             * key (F5, Space, F6) instead. Outside of that A and Plus also send F5 / F6.
-                             * A short tap on Minus is the normal gear shift (sent when the button is released).
-                             */
-                            static Uint64 s_bindUntil = 0;
-                            static Uint64 s_minusDownAt = 0;
-                            static bool s_altOnly[3] = { false, false, false };
-                            bool bindNow = false;
-                            if (event.jbutton.down && (event.jbutton.button == 0 || event.jbutton.button == 1 || event.jbutton.button == 10))
-                            {
-                                bindNow = SDL_GetTicks() < s_bindUntil;
-                                if (bindNow)
-                                    s_bindUntil = 0;
-                            }
-                            int altKey = -1; /* index into s_altOnly of an extra F key to send */
 
                             /* L3 + R3 together open the system keyboard (name entry) */
                             static bool s_stickClick[2] = { false, false };
@@ -419,24 +400,13 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 
                             switch (event.jbutton.button)
                             {
-                            case 0: /* A: nitrous / accept (+ F5) */
-                                if (event.jbutton.down)
-                                    s_altOnly[0] = bindNow;
-                                if (s_altOnly[0])
-                                {
-                                    result->wParam = 0x74;
-                                    scancode = SDL_SCANCODE_F5;
-                                    break;
-                                }
+                            case 0: /* A: accept in menus, nitrous in a race (Enter) */
                                 result->wParam = DWORD(SDLK_RETURN);
                                 scancode = SDL_SCANCODE_RETURN;
                                 sendCharacter = true;
-                                altKey = 0;
                                 break;
-                            case 1: /* B: handbrake in a race, back (Esc) in menus */
-                                if (event.jbutton.down)
-                                    s_altOnly[1] = bindNow;
-                                if (s_altOnly[1] || g_inRace)
+                            case 1: /* B: back (Esc) in menus, handbrake (Space) in a race */
+                                if (g_inRace)
                                 {
                                     result->wParam = DWORD(SDLK_SPACE);
                                     scancode = SDL_SCANCODE_SPACE;
@@ -494,33 +464,12 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = 0x26;
                                 scancode = SDL_SCANCODE_UP;
                                 break;
-                            case 10: /* Plus: pause menu (+ F6) */
-                                if (event.jbutton.down)
-                                    s_altOnly[2] = bindNow;
-                                if (s_altOnly[2])
-                                {
-                                    result->wParam = 0x75;
-                                    scancode = SDL_SCANCODE_F6;
-                                    break;
-                                }
+                            case 10: /* Plus: pause menu / back (Esc) */
                                 result->wParam = DWORD(SDLK_ESCAPE);
                                 scancode = SDL_SCANCODE_ESCAPE;
                                 sendCharacter = true;
-                                altKey = 1;
                                 break;
-                            case 11: /* Minus: shift down (on release); held: arm key assignment */
-                                if (event.jbutton.down)
-                                {
-                                    s_minusDownAt = SDL_GetTicks();
-                                    break;
-                                }
-                                if (SDL_GetTicks() - s_minusDownAt >= 700)
-                                {
-                                    s_bindUntil = SDL_GetTicks() + 10000;
-                                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "key assignment armed: next A, B or Plus press is assignable");
-                                    break;
-                                }
-                                minusTap = true;
+                            case 11: /* Minus: shift down */
                                 result->wParam = 'Z';
                                 scancode = SDL_SCANCODE_Z;
                                 sendCharacter = true;
@@ -571,39 +520,18 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->lParam = 1 | s_scancodeTable[SDL_SCANCODE_SPACE] << 16;
                             }
 #endif
-                            const bool isDown = event.jbutton.down || minusTap;
-                            result->message = isDown ? WM_KEYDOWN : WM_KEYUP;
+                            result->message = event.jbutton.down ? WM_KEYDOWN : WM_KEYUP;
                             result->hWindow = event.user.windowID;
 
 #ifdef __SWITCH__
                             SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "pad button %d %s -> key 0x%x%s",
-                                         (int) event.jbutton.button, isDown ? "down" : "up", (unsigned) result->wParam,
-                                         bindNow ? " (assign mode)" : "");
-                            if (minusTap)
-                            {
-                                SDL_Event zup;
-                                SDL_zero(zup);
-                                zup.type = SDL_EVENT_KEY_UP;
-                                zup.key.key = SDLK_Z;
-                                zup.key.scancode = SDL_SCANCODE_Z;
-                                SDL_PushEvent(&zup);
-                            }
-                            if (altKey >= 0)
-                            {
-                                SDL_Event aevent;
-                                SDL_zero(aevent);
-                                aevent.type = isDown ? SDL_EVENT_KEY_DOWN : SDL_EVENT_KEY_UP;
-                                aevent.key.key = altKey == 0 ? SDLK_F5 : SDLK_F6;
-                                aevent.key.scancode = altKey == 0 ? SDL_SCANCODE_F5 : SDL_SCANCODE_F6;
-                                SDL_PushEvent(&aevent);
-                            }
+                                         (int) event.jbutton.button, event.jbutton.down ? "down" : "up", (unsigned) result->wParam,
+                                         g_inRace ? " (race)" : " (menu)");
 #endif
 
-                            if (
+                            if (event.jbutton.down
 #ifdef __SWITCH__
-                                (event.jbutton.down || minusTap) && sendCharacter
-#else
-                                event.jbutton.down
+                                && sendCharacter
 #endif
                             )
                             {
