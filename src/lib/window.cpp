@@ -88,19 +88,19 @@ static void runSwitchKeyboard()
 
     /* the game's input queue is small: hand the keys over one at a time (see pumpSwitchText) */
     s_textQueue.clear();
-    for (int i = 0; i < 12; ++i)
+    for (int i = 0; i < 10; ++i)
         s_textQueue.push_back(-1);
     for (const char* c = text; *c; ++c)
         s_textQueue.push_back(static_cast<unsigned char>(*c));
 }
 
-/* delivers one queued key (-1 = Backspace) every 40 ms */
+/* delivers one queued key (-1 = Backspace) every 30 ms */
 static void pumpSwitchText()
 {
     if (s_textQueue.empty())
         return;
     Uint64 now = SDL_GetTicks();
-    if (now - s_textLast < 40)
+    if (now - s_textLast < 30)
         return;
     s_textLast = now;
     int c = s_textQueue.front();
