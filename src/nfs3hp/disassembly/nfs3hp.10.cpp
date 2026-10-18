@@ -12498,7 +12498,8 @@ L_0x0043cde8:
         cpu.set_szp(result);
     }
     // 0043cdf4  7c27                   -jl 0x43ce1d
-    if (cpu.flags.sf != cpu.flags.of)
+    /* hand-written change: Enter (0x0d) may be assigned to an action as well (the Switch A button sends Enter) */
+    if (cpu.flags.sf != cpu.flags.of && cpu.eax != 0x0d)
     {
         goto L_0x0043ce1d;
     }
@@ -12512,7 +12513,7 @@ L_0x0043cde8:
     cpu.clear_co();
     cpu.set_szp(static_cast<x86::reg8>(app->getMemory<x86::reg8>(cpu.ebx + x86::reg32(5656304) /* 0x564ef0 */) & 32 /*0x20*/));
     // 0043ce07  7514                   -jne 0x43ce1d
-    if (!cpu.flags.zf)
+    if (!cpu.flags.zf && cpu.eax != 0x0d)
     {
         goto L_0x0043ce1d;
     }

@@ -147,8 +147,8 @@ void requestTextInput(unsigned buffer)
 #ifdef __SWITCH__
 /*
  * Stick directions act as keys of their own, so that they can be assigned in
- * the controls menu like any other button. The keys are digits, which the
- * game does not use by default.
+ * the controls menu like any other button. The keys are letters that the game
+ * does not use by default (the controls menu rejects digits and function keys).
  */
 static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode scancode)
 {
@@ -705,16 +705,16 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             const int value = event.jaxis.value;
                             switch (event.jaxis.axis)
                             {
-                            case 1: /* left stick vertical: keys 1 (up), 2 (down) */
-                                stickKey(s_lStickUp, value < -20000, SDLK_1, SDL_SCANCODE_1);
-                                stickKey(s_lStickDown, value > 20000, SDLK_2, SDL_SCANCODE_2);
+                            case 1: /* left stick vertical: keys I (up), K (down) */
+                                stickKey(s_lStickUp, value < -20000, SDLK_I, SDL_SCANCODE_I);
+                                stickKey(s_lStickDown, value > 20000, SDLK_K, SDL_SCANCODE_K);
                                 break;
-                            case 2: /* right stick horizontal: keys 3 (left), 4 (right) */
-                                stickKey(s_rStickLeft, value < -20000, SDLK_3, SDL_SCANCODE_3);
-                                stickKey(s_rStickRight, value > 20000, SDLK_4, SDL_SCANCODE_4);
+                            case 2: /* right stick horizontal: keys J (left), M (right) */
+                                stickKey(s_rStickLeft, value < -20000, SDLK_J, SDL_SCANCODE_J);
+                                stickKey(s_rStickRight, value > 20000, SDLK_M, SDL_SCANCODE_M);
                                 break;
-                            case 3: /* right stick vertical: key 5 (up), B (down, look behind) */
-                                stickKey(s_rStickUp, value < -20000, SDLK_5, SDL_SCANCODE_5);
+                            case 3: /* right stick vertical: key U (up), B (down, look behind) */
+                                stickKey(s_rStickUp, value < -20000, SDLK_U, SDL_SCANCODE_U);
                                 stickKey(s_rStickDown, value > 20000, SDLK_B, SDL_SCANCODE_B);
                                 break;
                             }
