@@ -16884,22 +16884,8 @@ void Application::sub_45cdc0(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
-    // 0045cdc0  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdc2  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdc4  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdc6  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdc8  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdca  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdcc  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
-    // 0045cdce  0000                   -add byte ptr [eax], al
-    (app->getMemory<x86::reg8>(cpu.eax)) += x86::reg8(x86::sreg8(cpu.al));
+    /* 0x45cdc0..0x45cdcf: alignment padding (8 x 'add [eax], al') that the disassembler mistook for code;
+       the function pointer given to the menu code is 0x45cdd0 */
     // 0045cdd0  51                     -push ecx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ecx;
     cpu.esp -= 4;
