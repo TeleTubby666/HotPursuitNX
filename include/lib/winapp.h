@@ -166,7 +166,16 @@ public:
 public:
     inline void dynamic_call(uint32_t address, x86::CPU& cpu)
     {
-        const win32::Method& m = m_methods.find(address-0x400000)->second;
+        std::unordered_map<x86::reg32, Method>::const_iterator it = m_methods.find(address-0x400000);
+        if (it == m_methods.end())
+        {
+            /* the guest called a function pointer we know nothing about: skip the call instead of crashing */
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "call to unknown address 0x%08x ignored (esp=0x%08x)", (unsigned) address, (unsigned) cpu.esp);
+            cpu.eax = 0;
+            cpu.esp += 4; /* drop the return address pushed by the caller */
+            return;
+        }
+        const win32::Method& m = it->second;
         //SDL_LogDebug("[%lu] Calling method: %s", SDL_ThreadID(), m.name.c_str());
         m(this, cpu);
     }
