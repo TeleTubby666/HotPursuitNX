@@ -15,6 +15,9 @@ namespace win32
  */
 void initLog(const char* path);
 
+/* Logs the load address of the program (to resolve addresses of crash reports). */
+void logImageBase();
+
 /* Writes a formatted line to the log file (and the default sink). */
 void logPrintf(const char* fmt, ...)
 #if defined(__GNUC__)

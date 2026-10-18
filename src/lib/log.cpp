@@ -170,6 +170,11 @@ static unsigned long long imageBase()
     return textBase((unsigned long long) &textBase);
 }
 
+void logImageBase()
+{
+    logPrintf("image base 0x%llx", imageBase());
+}
+
 static void dumpThreads(const char* reason)
 {
     char buffer[256];

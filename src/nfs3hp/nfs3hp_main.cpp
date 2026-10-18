@@ -33,6 +33,7 @@ int main(int argc, char* argv[])
     setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1);
     win32::initLog("sdmc:/switch/nfs3hp/log.txt");
     win32::logPrintf("NFS3 HP starting (Switch)");
+    win32::logImageBase();
     win32::File::setDataDirectory("sdmc:/switch/nfs3hp/");
     win32::File::setCdDirectory("sdmc:/switch/nfs3hp/");
 #else
@@ -83,6 +84,7 @@ int main(int argc, char* argv[])
         fclose(f);
     }
     win32::logPrintf("game finished, exit mode %d", exitMode);
+    win32::logImageBase();
     switch (exitMode)
     {
     case 0: /* return from main without any teardown */

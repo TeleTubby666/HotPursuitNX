@@ -150,7 +150,7 @@ void requestTextInput(unsigned buffer)
  * the controls menu like any other button. The keys are letters that the game
  * does not use by default (the controls menu rejects digits and function keys).
  */
-static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode scancode)
+static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode scancode, bool sendChar = true)
 {
     if (state == active)
         return;
@@ -163,7 +163,7 @@ static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode sca
     kevent.key.scancode = scancode;
     SDL_PushEvent(&kevent);
 
-    if (active)
+    if (active && sendChar)
     {
         SDL_Event cevent;
         SDL_zero(cevent);
@@ -705,9 +705,9 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             const int value = event.jaxis.value;
                             switch (event.jaxis.axis)
                             {
-                            case 1: /* left stick vertical: keys I (up), K (down) */
-                                stickKey(s_lStickUp, value < -20000, SDLK_I, SDL_SCANCODE_I);
-                                stickKey(s_lStickDown, value > 20000, SDLK_K, SDL_SCANCODE_K);
+                            case 1: /* left stick vertical: Up / Down arrow keys, like the D-pad */
+                                stickKey(s_lStickUp, value < -20000, SDLK_UP, SDL_SCANCODE_UP, false);
+                                stickKey(s_lStickDown, value > 20000, SDLK_DOWN, SDL_SCANCODE_DOWN, false);
                                 break;
                             case 2: /* right stick horizontal: keys J (left), M (right) */
                                 stickKey(s_rStickLeft, value < -20000, SDLK_J, SDL_SCANCODE_J);

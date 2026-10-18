@@ -52,7 +52,7 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | Left stick click (L3) | Reset car |
 | Plus (+) | Pause menu / back (Esc) |
 | L | Free key (Q), assignable in the controls menu |
-| Left stick up / down | Free keys I / K, assignable |
+| Left stick | Arrow keys (steer, menu navigation) |
 | Right stick up / left / right | Free keys U / J / M, assignable |
 | Minus (-) | Shift down (manual) |
 
