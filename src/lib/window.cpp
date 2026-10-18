@@ -88,9 +88,11 @@ static void runSwitchKeyboard()
     {
         SDL_Event bs;
         SDL_zero(bs);
-        bs.type = g_wmCharEvent;
-        bs.user.data1 = reinterpret_cast<void*>(static_cast<intptr_t>(8));
-        bs.user.data2 = reinterpret_cast<void*>(lparam);
+        bs.type = SDL_EVENT_KEY_DOWN;
+        bs.key.key = SDLK_BACKSPACE;
+        bs.key.scancode = SDL_SCANCODE_BACKSPACE;
+        SDL_PushEvent(&bs);
+        bs.type = SDL_EVENT_KEY_UP;
         SDL_PushEvent(&bs);
     }
     for (const char* c = text; *c; ++c)
@@ -389,13 +391,40 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             BOOL sendCharacter = false;
 
 
-                            /* L3 + R3 together open the system keyboard (name entry) */
+                            /*
+                             * L3 + R3 together open the system keyboard (name entry). A single
+                             * click only acts on release, so the combination does not type
+                             * the letters of the individual buttons.
+                             */
                             static bool s_stickClick[2] = { false, false };
+                            static bool s_stickUsed[2] = { false, false };
                             if (event.jbutton.button == 4 || event.jbutton.button == 5)
                             {
-                                s_stickClick[event.jbutton.button - 4] = event.jbutton.down;
-                                if (event.jbutton.down && s_stickClick[0] && s_stickClick[1])
-                                    s_keyboardRequested = true;
+                                const int idx = event.jbutton.button - 4;
+                                if (event.jbutton.down)
+                                {
+                                    s_stickClick[idx] = true;
+                                    if (s_stickClick[1 - idx])
+                                    {
+                                        s_stickUsed[0] = s_stickUsed[1] = true;
+                                        s_keyboardRequested = true;
+                                    }
+                                    break;
+                                }
+                                s_stickClick[idx] = false;
+                                if (s_stickUsed[idx])
+                                {
+                                    s_stickUsed[idx] = false;
+                                    break;
+                                }
+                                /* plain click: press now, release right after */
+                                SDL_Event up;
+                                SDL_zero(up);
+                                up.type = SDL_EVENT_KEY_UP;
+                                up.key.key = idx == 0 ? SDLK_R : SDLK_C;
+                                up.key.scancode = idx == 0 ? SDL_SCANCODE_R : SDL_SCANCODE_C;
+                                SDL_PushEvent(&up);
+                                event.jbutton.down = true;
                             }
 
                             switch (event.jbutton.button)

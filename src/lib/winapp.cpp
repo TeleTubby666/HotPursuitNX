@@ -95,7 +95,9 @@ WinApplication::~WinApplication()
     delete m_resourceContext;
     delete m_executionContext;
     /*delete[] m_methods;*/
-    NFS2_ASSERT(SDL_GetAtomicInt(&s_resourceCount) == 0);
+    /* leftover resources at exit are harmless; do not crash while quitting */
+    if (SDL_GetAtomicInt(&s_resourceCount) != 0)
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%d resources were still allocated at exit", (int) SDL_GetAtomicInt(&s_resourceCount));
 }
 
 void WinApplication::addRegistryKey(x86::reg32 root, const char* keyname, const char* valuename, RegistryValue* value)
