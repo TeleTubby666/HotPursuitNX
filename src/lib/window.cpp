@@ -608,7 +608,12 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 result->wParam = 0x28;
                                 scancode = SDL_SCANCODE_DOWN;
                                 break;
-                            case 9: /* ZR: accelerate */
+                            case 9: /* ZR: accelerate in a race, left mouse button in the menus */
+                                if (!g_inRace)
+                                {
+                                    Mouse::setButton(0, event.jbutton.down);
+                                    break;
+                                }
                                 result->wParam = 0x26;
                                 scancode = SDL_SCANCODE_UP;
                                 break;
@@ -819,26 +824,26 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                 case SDL_EVENT_FINGER_MOTION:
                 case SDL_EVENT_FINGER_UP:
                     {
-                        /* only the first finger is the mouse; a menu is operated by touching it */
-                        static SDL_FingerID s_finger = 0;
+                        /*
+                         * One finger is the mouse. The finger ids are not used: on the Switch a
+                         * release was lost sometimes and the touch screen was dead from then on.
+                         * A new touch always starts afresh.
+                         */
                         static bool s_fingerActive = false;
-                        if (event.type == SDL_EVENT_FINGER_DOWN && !s_fingerActive)
+                        if (event.type == SDL_EVENT_FINGER_DOWN)
                         {
                             s_fingerActive = true;
-                            s_finger = event.tfinger.fingerID;
                             Mouse::touch(0, event.tfinger.x, event.tfinger.y);
                         }
-                        else if (s_fingerActive && event.tfinger.fingerID == s_finger)
+                        else if (event.type == SDL_EVENT_FINGER_MOTION)
                         {
-                            if (event.type == SDL_EVENT_FINGER_MOTION)
-                            {
+                            if (s_fingerActive)
                                 Mouse::touch(1, event.tfinger.x, event.tfinger.y);
-                            }
-                            else if (event.type == SDL_EVENT_FINGER_UP)
-                            {
-                                s_fingerActive = false;
-                                Mouse::touch(2, event.tfinger.x, event.tfinger.y);
-                            }
+                        }
+                        else
+                        {
+                            s_fingerActive = false;
+                            Mouse::touch(2, event.tfinger.x, event.tfinger.y);
                         }
                     }
                     break;

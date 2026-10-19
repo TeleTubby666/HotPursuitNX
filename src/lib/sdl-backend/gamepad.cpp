@@ -334,6 +334,7 @@ void Mouse::touch(int phase, float x, float y)
     SDL_LockMutex(d.mutex);
     if (phase == 2)
     {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch up");
         d.touching = false;
         /* keep the button down for a moment so that a quick tap is not lost between two game frames */
         d.releaseAt[0] = SDL_GetTicks() + 80;

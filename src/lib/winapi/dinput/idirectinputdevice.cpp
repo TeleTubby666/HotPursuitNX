@@ -203,6 +203,15 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         NFS2_ASSERT(cbData == sizeof(DIJOYSTATE));
         DIJOYSTATE* state = reinterpret_cast<DIJOYSTATE*>(lpvData);
         GamepadState gpState = gamepad->getState();
+        static bool s_logged = false;
+        if (!s_logged)
+        {
+            s_logged = true;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput: game reads the joystick state (stick keys are off from now on)");
+        }
+        /* the game reads the joystick state without Poll(); count that as polling so that the
+           sticks are not also converted to keys (otherwise steering would be doubled) */
+        Input::poll();
         state->lX = 0x7fff + gpState.axes[0];
         state->lY = 0x7fff + gpState.axes[1];
         state->lZ = 0x7fff + gpState.axes[4];
@@ -213,10 +222,15 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         state->rgdwPOV[1] = -1;
         state->rgdwPOV[2] = -1;
         state->rgdwPOV[3] = -1;
+#ifndef __SWITCH__
         for (int button = 0; button < 16; ++button)
         {
             state->rgbButtons[button] = (gpState.buttons & (1ll<<button)) ? 0x80 : 0x00;
         }
+#endif
+        /* On the Switch the joystick only provides the analog axes. The buttons already work as
+           keys; as joystick buttons the game would take the A press that confirms a menu item
+           for every key assignment. */
     }
     app->lockContext(cpu);
     return 0;

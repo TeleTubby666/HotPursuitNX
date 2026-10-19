@@ -61,11 +61,11 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 The game is operated with a mouse cursor in its menus. On the Switch:
 
 - **Touch screen**: touching the screen puts the cursor at that spot and presses the left mouse button; dragging drags (sliders).
-- **Right stick** moves the cursor (the further you push, the faster it goes), **a click on the right stick (R3)** is the left mouse button. In a race the right stick keeps its key functions.
+- **Right stick** moves the cursor (the further you push, the faster it goes), **a click on the right stick (R3) or ZR** is the left mouse button. In a race the right stick keeps its key functions.
 
 ### Joystick (DirectInput)
 
-The Switch controller is also offered to the game as a DirectInput joystick with analog axes (left stick = X/Y, right stick = Rx/Ry). If you choose the joystick as the controller in the game's controls menu, steering is smooth and uses the real stick position. While the game reads the joystick, the stick-to-key conversion is switched off (the buttons keep working as keys).
+The Switch controller is also offered to the game as a DirectInput joystick with analog axes (left stick = X/Y, right stick = Rx/Ry). If you choose the joystick as the controller in the game's controls menu, steering is smooth and uses the real stick position. While the game reads the joystick, the stick-to-key conversion is switched off. The joystick only provides the axes; the buttons keep working as keys.
 
 ## Building from source
 
