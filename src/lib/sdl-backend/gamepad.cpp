@@ -170,10 +170,11 @@ namespace
         int syncStage;
         float targetX, targetY;
         bool pendingPress;
+        Uint64 pressAt;                    /* time of the delayed press that follows a touch, 0 = none */
         MouseData()
             :   mutex(SDL_CreateMutex()), dx(0), dy(0), buttons(), releaseAt(),
                 windowW(0), windowH(0), viewX(0), viewY(0), viewW(0), viewH(0), gameW(640), gameH(480),
-                touching(false), cursorX(320.f), cursorY(240.f), syncStage(0), targetX(0.f), targetY(0.f), pendingPress(false)
+                touching(false), cursorX(320.f), cursorY(240.f), syncStage(0), targetX(0.f), targetY(0.f), pendingPress(false), pressAt(0)
         {
         }
     };
@@ -237,10 +238,9 @@ namespace
         d.cursorY = (float) dy;
         if (d.pendingPress)
         {
+            /* the game needs a moment to notice what is under the cursor before the click arrives */
             d.pendingPress = false;
-            applyButton(d, 0, true);
-            if (!d.touching)
-                d.releaseAt[0] = SDL_GetTicks() + 80;
+            d.pressAt = SDL_GetTicks() + 120;
         }
     }
 
@@ -255,6 +255,13 @@ namespace
     void applyDelayedReleases(MouseData& d)
     {
         const Uint64 now = SDL_GetTicks();
+        if (d.pressAt && now >= d.pressAt)
+        {
+            d.pressAt = 0;
+            applyButton(d, 0, true);
+            if (!d.touching)
+                d.releaseAt[0] = now + 120;     /* the finger is already up again: it was a tap */
+        }
         for (int i = 0; i < 8; ++i)
         {
             if (d.releaseAt[i] && now >= d.releaseAt[i])
@@ -379,9 +386,9 @@ void Mouse::touch(int phase, float x, float y)
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch up");
         d.touching = false;
-        /* keep the button down for a moment so that a quick tap is not lost between two game frames;
-           when the corner step is still pending the release is scheduled after the press */
-        if (d.syncStage == 0)
+        /* a button that is already down is released a moment later so that a quick tap is not lost
+           between two game frames; a press that is still pending releases itself after it was made */
+        if (d.buttons[0])
             d.releaseAt[0] = SDL_GetTicks() + 80;
         SDL_UnlockMutex(d.mutex);
         return;
@@ -402,6 +409,7 @@ void Mouse::touch(int phase, float x, float y)
             /* new touch: corner first, then the finger position (see syncStage) */
             d.touching = true;
             d.releaseAt[0] = 0;
+            d.pressAt = 0;
             d.targetX = gx;
             d.targetY = gy;
             d.pendingPress = true;

@@ -654,6 +654,14 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             if (scancode == SDL_SCANCODE_UNKNOWN)
                                 break;
 
+                            /*
+                             * While a row of the controls menu waits for a key the buttons only count as
+                             * joystick buttons. If they also pressed a key, the game would get both and
+                             * assign one at random. Releases and Plus (Esc, cancel) still go through.
+                             */
+                            if (g_capturingKey && event.jbutton.down && event.jbutton.button != 10)
+                                break;
+
                             result->lParam = 1 | s_scancodeTable[scancode] << 16;
 #else
                             if (event.jbutton.button == 7)
