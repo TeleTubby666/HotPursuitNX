@@ -52,9 +52,8 @@ HRESULT IDirectInput2::CreateDevice(WinApplication* app, x86::CPU& cpu,
     }
     else
     {
-        input = Gamepad::getInstance();
-        if (!input)
-            input = new Gamepad(rguid->Data3);
+        /* always a device of its own: the shared instance used for key conversion is not a game resource */
+        input = new Gamepad(rguid->Data3);
     }
     app->allocateResource(input);
     *lplpDirectInputDevice = Packed<IDirectInputDevice>(com::ComAlloc(app));
@@ -75,7 +74,13 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
         MemMap mem(1024);
         DIDEVICEINSTANCE* device = &app->getMemory<DIDEVICEINSTANCE>(mem.getBlockStart());
         device->dwSize = sizeof(DIDEVICEINSTANCE);
-        for (x86::reg16 deviceIndex = 0; deviceIndex < Gamepad::getCount(); ++deviceIndex)
+        x86::reg16 deviceCount = (x86::reg16) Gamepad::getCount();
+#ifdef __SWITCH__
+        /* SDL lists every Joy-Con / virtual pad separately; the game gets one joystick */
+        if (deviceCount > 1)
+            deviceCount = 1;
+#endif
+        for (x86::reg16 deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
         {
             device->dwDevType = dwDevType;
             device->guidInstance = s_joystickGUID;
