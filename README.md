@@ -65,7 +65,7 @@ The game is operated with a mouse cursor in its menus. On the Switch:
 
 ### Joystick (DirectInput)
 
-The Switch controller is also offered to the game as a DirectInput joystick with analog axes (left stick = X/Y, right stick = Rx/Ry). If you choose the joystick as the controller in the game's controls menu, steering is smooth and uses the real stick position. While the game reads the joystick, the stick-to-key conversion is switched off. The joystick only provides the axes; the buttons keep working as keys.
+The Switch controller is also offered to the game as a DirectInput joystick with analog axes (left stick = X/Y, right stick = Rx/Ry). If you choose the joystick as the controller in the game's controls menu, steering is smooth and uses the real stick position. While the game reads the joystick, the stick-to-key conversion is switched off. The Switch buttons are also joystick buttons (0 = A, 1 = B, 2 = X, 3 = Y, 4 = L3, 5 = R3, 6 = L, 7 = R, 8 = ZL, 9 = ZR, 10 = +, 11 = -, 12-15 = D-pad), so every action can be assigned to the joystick in the controls menu. The menus still get their keys (Enter, Esc, arrows) from A, B and the D-pad.
 
 ## Building from source
 

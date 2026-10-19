@@ -1,6 +1,7 @@
 #include <winapi/dinput/idirectinputdevice.h>
 #include <winapi/wrapper.h>
 #include <lib/gamepad.h>
+#include <lib/window.h>
 
 
 namespace win32 { namespace dinput
@@ -222,15 +223,32 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         state->rgdwPOV[1] = -1;
         state->rgdwPOV[2] = -1;
         state->rgdwPOV[3] = -1;
-#ifndef __SWITCH__
+        x86::reg64 buttons = gpState.buttons;
+#ifdef __SWITCH__
+        /*
+         * The buttons are offered as joystick buttons as well. While a row of the controls menu
+         * waits for a key, buttons that were already held when it started are hidden until they
+         * are released: the A that selected the row would otherwise be assigned every time.
+         */
+        static bool s_wasCapturing = false;
+        static x86::reg64 s_hidden = 0;
+        if (g_capturingKey)
+        {
+            if (!s_wasCapturing)
+                s_hidden = buttons;
+            s_hidden &= buttons;
+            buttons &= ~s_hidden;
+        }
+        else
+        {
+            s_hidden = 0;
+        }
+        s_wasCapturing = g_capturingKey;
+#endif
         for (int button = 0; button < 16; ++button)
         {
-            state->rgbButtons[button] = (gpState.buttons & (1ll<<button)) ? 0x80 : 0x00;
+            state->rgbButtons[button] = (buttons & (1ll<<button)) ? 0x80 : 0x00;
         }
-#endif
-        /* On the Switch the joystick only provides the analog axes. The buttons already work as
-           keys; as joystick buttons the game would take the A press that confirms a menu item
-           for every key assignment. */
     }
     app->lockContext(cpu);
     return 0;
