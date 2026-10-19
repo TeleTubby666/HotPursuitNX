@@ -173,6 +173,36 @@ static void stickKey(bool& state, bool active, SDL_Keycode key, SDL_Scancode sca
         SDL_PushEvent(&cevent);
     }
 }
+
+/*
+ * Steering with a key is all or nothing. To get gentle steering the left/right key is
+ * pressed for a fraction of a short period that follows the stick deflection
+ * (pulse width modulation). The period is a compromise: the game samples the keys once
+ * per frame, so a shorter period gets uneven, a longer one makes the car twitch.
+ */
+static int s_steerValue = 0;
+static bool s_steerLeftDown = false;
+static bool s_steerRightDown = false;
+
+static void pumpSteering()
+{
+    const int deadZone = 5000;
+    const Uint64 period = 66;
+
+    int value = g_inRace ? s_steerValue : 0;
+    int magnitude = value < 0 ? -value : value;
+    magnitude = magnitude > deadZone ? magnitude - deadZone : 0;
+    int duty = magnitude * 100 / (32767 - deadZone - 2000); /* full lock a little before the end stop */
+    if (duty > 100)
+        duty = 100;
+
+    bool pressed = duty > 0 && (SDL_GetTicks() % period) * 100 < (Uint64) duty * period;
+    if (duty >= 95)
+        pressed = true;
+
+    stickKey(s_steerLeftDown, pressed && value < 0, SDLK_LEFT, SDL_SCANCODE_LEFT, false);
+    stickKey(s_steerRightDown, pressed && value > 0, SDLK_RIGHT, SDL_SCANCODE_RIGHT, false);
+}
 #endif
 
 
@@ -225,6 +255,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
         watchdogHeartbeat();
 #ifdef __SWITCH__
         pumpSwitchText();
+        pumpSteering();
         if (s_keyboardRequested)
         {
             s_keyboardRequested = false;
@@ -622,6 +653,15 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     {
                         if (event.jaxis.axis == 0)
                         {
+#ifdef __SWITCH__
+                            /* in a race the left stick steers proportionally (see pumpSteering) */
+                            if (g_inRace)
+                            {
+                                s_steerValue = event.jaxis.value;
+                                break;
+                            }
+                            s_steerValue = 0;
+#endif
                             static x86::sreg16 s_prevAxisValue = 0;
                             if ((s_prevAxisValue > 30000) && (event.jaxis.value < 30000))
                             {
