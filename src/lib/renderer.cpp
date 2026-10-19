@@ -110,6 +110,8 @@ void Renderer::present()
         vpY = (h - vpH) / 2;
     }
 
+    Mouse::setView(w, h, vpX, vpY, vpW, vpH, int(m_width), int(m_height));
+
     glViewport(0, 0, w, h);
     glClearColor(0.f, 0.f, 0.f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT);

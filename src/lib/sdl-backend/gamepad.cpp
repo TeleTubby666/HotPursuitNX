@@ -1,6 +1,7 @@
 #include <lib/gamepad.h>
 #include <SDL3/SDL.h>
 #include <cstring>
+#include <vector>
 
 
 namespace win32
@@ -136,6 +137,236 @@ void Gamepad::updateKeys()
 #ifdef __SWITCH__
     SDL_SetAtomicInt(&s_sampling, 0);
 #endif
+}
+
+
+/*
+ * Mouse: the game reads the mouse through DirectInput, but nothing in the shim produced
+ * mouse data so far. Everything that moves the cursor (right stick, touch screen) ends up here.
+ */
+namespace
+{
+    struct MouseData
+    {
+        SDL_Mutex* mutex;
+        int dx, dy;
+        bool buttons[8];
+        Uint64 releaseAt[8];                /* 0 = no delayed release pending */
+        std::vector<Mouse::Event> events;
+
+        /* window / picture geometry for touch */
+        int windowW, windowH, viewX, viewY, viewW, viewH, gameW, gameH;
+
+        /* touch */
+        bool touching;
+        float cursorX, cursorY;            /* cursor position in game pixels as the game should see it */
+        MouseData()
+            :   mutex(SDL_CreateMutex()), dx(0), dy(0), buttons(), releaseAt(),
+                windowW(0), windowH(0), viewX(0), viewY(0), viewW(0), viewH(0), gameW(640), gameH(480),
+                touching(false), cursorX(320.f), cursorY(240.f)
+        {
+        }
+    };
+
+    MouseData& mouseData()
+    {
+        static MouseData data;
+        return data;
+    }
+
+    const size_t kMaxEvents = 256;
+
+    void pushEvent(MouseData& d, unsigned offset, int value)
+    {
+        if (d.events.size() >= kMaxEvents)
+            d.events.erase(d.events.begin());
+        Mouse::Event e;
+        e.offset = offset;
+        e.data = value;
+        e.timeStamp = (unsigned) SDL_GetTicks();
+        d.events.push_back(e);
+    }
+
+    void applyMotion(MouseData& d, int dx, int dy)
+    {
+        if (dx)
+        {
+            d.dx += dx;
+            pushEvent(d, 0, dx);
+        }
+        if (dy)
+        {
+            d.dy += dy;
+            pushEvent(d, 4, dy);
+        }
+        const int limit = 100000;
+        if (d.dx > limit) d.dx = limit;
+        if (d.dx < -limit) d.dx = -limit;
+        if (d.dy > limit) d.dy = limit;
+        if (d.dy < -limit) d.dy = -limit;
+    }
+
+    void applyButton(MouseData& d, int button, bool down)
+    {
+        if (button < 0 || button >= 8 || d.buttons[button] == down)
+            return;
+        d.buttons[button] = down;
+        pushEvent(d, 12 + button, down ? 0x80 : 0);
+    }
+
+    /* releases whose time has come */
+    void applyDelayedReleases(MouseData& d)
+    {
+        const Uint64 now = SDL_GetTicks();
+        for (int i = 0; i < 8; ++i)
+        {
+            if (d.releaseAt[i] && now >= d.releaseAt[i])
+            {
+                d.releaseAt[i] = 0;
+                applyButton(d, i, false);
+            }
+        }
+    }
+}
+
+x86::reg32 Mouse::getButtonCount() const
+{
+    return 3;
+}
+
+x86::reg32 Mouse::getAxesCount() const
+{
+    return 2;
+}
+
+void Mouse::addMotion(int dx, int dy)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    applyMotion(d, dx, dy);
+    /* keep our idea of the cursor position in step (the game clamps to its screen as well) */
+    d.cursorX += dx;
+    d.cursorY += dy;
+    if (d.cursorX < 0.f) d.cursorX = 0.f;
+    if (d.cursorY < 0.f) d.cursorY = 0.f;
+    if (d.cursorX > d.gameW - 1) d.cursorX = (float) (d.gameW - 1);
+    if (d.cursorY > d.gameH - 1) d.cursorY = (float) (d.gameH - 1);
+    SDL_UnlockMutex(d.mutex);
+}
+
+void Mouse::setButton(int button, bool down)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    if (button >= 0 && button < 8)
+        d.releaseAt[button] = 0;
+    applyButton(d, button, down);
+    SDL_UnlockMutex(d.mutex);
+}
+
+void Mouse::click(int button)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    if (button >= 0 && button < 8)
+    {
+        applyButton(d, button, true);
+        d.releaseAt[button] = SDL_GetTicks() + 100;
+    }
+    SDL_UnlockMutex(d.mutex);
+}
+
+void Mouse::takeState(int& dx, int& dy, unsigned char buttons[8])
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    applyDelayedReleases(d);
+    dx = d.dx;
+    dy = d.dy;
+    d.dx = d.dy = 0;
+    for (int i = 0; i < 8; ++i)
+        buttons[i] = d.buttons[i] ? 0x80 : 0x00;
+    SDL_UnlockMutex(d.mutex);
+}
+
+unsigned Mouse::takeEvents(Event* events, unsigned maxEvents, bool peek)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    applyDelayedReleases(d);
+    unsigned count = (unsigned) d.events.size();
+    if (count > maxEvents)
+        count = maxEvents;
+    for (unsigned i = 0; i < count; ++i)
+        events[i] = d.events[i];
+    if (!peek)
+        d.events.erase(d.events.begin(), d.events.begin() + count);
+    SDL_UnlockMutex(d.mutex);
+    return count;
+}
+
+void Mouse::clearEvents()
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    d.events.clear();
+    SDL_UnlockMutex(d.mutex);
+}
+
+void Mouse::setView(int windowW, int windowH, int viewX, int viewY, int viewW, int viewH, int gameW, int gameH)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    d.windowW = windowW;
+    d.windowH = windowH;
+    d.viewX = viewX;
+    d.viewY = viewY;
+    d.viewW = viewW;
+    d.viewH = viewH;
+    d.gameW = gameW;
+    d.gameH = gameH;
+    SDL_UnlockMutex(d.mutex);
+}
+
+void Mouse::touch(int phase, float x, float y)
+{
+    MouseData& d = mouseData();
+    SDL_LockMutex(d.mutex);
+    if (phase == 2)
+    {
+        d.touching = false;
+        /* keep the button down for a moment so that a quick tap is not lost between two game frames */
+        d.releaseAt[0] = SDL_GetTicks() + 80;
+        SDL_UnlockMutex(d.mutex);
+        return;
+    }
+
+    if (d.viewW > 0 && d.viewH > 0 && d.gameW > 0 && d.gameH > 0)
+    {
+        /* finger position -> pixel of the game picture; touches in the black bars hit the nearest edge */
+        float gx = (x * d.windowW - d.viewX) * d.gameW / d.viewW;
+        float gy = (y * d.windowH - d.viewY) * d.gameH / d.viewH;
+        if (gx < 0.f) gx = 0.f;
+        if (gy < 0.f) gy = 0.f;
+        if (gx > d.gameW - 1) gx = (float) (d.gameW - 1);
+        if (gy > d.gameH - 1) gy = (float) (d.gameH - 1);
+
+        /* the game only understands relative movement, so move its cursor by the difference
+           to where it should currently be */
+        const int dx = (int) (gx - d.cursorX);
+        const int dy = (int) (gy - d.cursorY);
+        d.cursorX += dx;
+        d.cursorY += dy;
+        applyMotion(d, dx, dy);
+        if (phase == 0)
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch down: game position %d,%d (moved %d,%d)",
+                        (int) d.cursorX, (int) d.cursorY, dx, dy);
+            d.touching = true;
+            applyButton(d, 0, true);
+        }
+    }
+    SDL_UnlockMutex(d.mutex);
 }
 
 x86::reg32 Input::getButtonCount() const

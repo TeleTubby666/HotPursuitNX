@@ -67,11 +67,11 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(dwFlags);
 
-#ifndef __SWITCH__
     static const GUID s_joystickGUID = { 0x4251809a, 0x67be, 0, "NFS PAD" };
     static const GUID s_driverGUID = { 0x4251809a, 0x67bf, 0xffff, "NFS PAD" };
     if (dwDevType == 4)
     {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput: game enumerates joysticks, %d available", (int) Gamepad::getCount());
         MemMap mem(1024);
         DIDEVICEINSTANCE* device = &app->getMemory<DIDEVICEINSTANCE>(mem.getBlockStart());
         device->dwSize = sizeof(DIDEVICEINSTANCE);
@@ -96,13 +96,6 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
                 break;
         }
     }
-#else
-    NFS2_USE(app);
-    NFS2_USE(cpu);
-    NFS2_USE(dwDevType);
-    NFS2_USE(lpCallback);
-    NFS2_USE(pvRef);
-#endif
     return 0;
 }
 

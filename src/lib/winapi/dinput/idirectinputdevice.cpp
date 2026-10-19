@@ -178,23 +178,30 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(lpvData);
     app->unlockContext(cpu);
     Gamepad* gamepad = dynamic_cast<Gamepad*>(m_resource);
+    Mouse* mouse = dynamic_cast<Mouse*>(m_resource);
     memset(lpvData, 0, cbData);
-    if (gamepad)
+    if (mouse)
+    {
+        /* DIMOUSESTATE: lX, lY, lZ (relative movement), then the buttons; DIMOUSESTATE2 has 8 buttons */
+        int dx, dy;
+        unsigned char buttons[8];
+        Mouse::takeState(dx, dy, buttons);
+        LONG* axes = reinterpret_cast<LONG*>(lpvData);
+        if (cbData >= 4)
+            axes[0] = dx;
+        if (cbData >= 8)
+            axes[1] = dy;
+        if (cbData > 12)
+        {
+            BYTE* out = reinterpret_cast<BYTE*>(lpvData) + 12;
+            for (DWORD i = 0; i < cbData - 12 && i < 8; ++i)
+                out[i] = buttons[i];
+        }
+    }
+    else if (gamepad)
     {
         NFS2_ASSERT(cbData == sizeof(DIJOYSTATE));
         DIJOYSTATE* state = reinterpret_cast<DIJOYSTATE*>(lpvData);
-#ifdef __SWITCH__
-        state->lX = 0x7fff;
-        state->lY = 0x7fff;
-        state->lZ = 0x7fff;
-        state->lRx = 0x7fff;
-        state->lRy = 0x7fff;
-        state->lRz = 0x7fff;
-        state->rgdwPOV[0] = -1;
-        state->rgdwPOV[1] = -1;
-        state->rgdwPOV[2] = -1;
-        state->rgdwPOV[3] = -1;
-#else
         GamepadState gpState = gamepad->getState();
         state->lX = 0x7fff + gpState.axes[0];
         state->lY = 0x7fff + gpState.axes[1];
@@ -210,7 +217,6 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         {
             state->rgbButtons[button] = (gpState.buttons & (1ll<<button)) ? 0x80 : 0x00;
         }
-#endif
     }
     app->lockContext(cpu);
     return 0;
@@ -226,7 +232,34 @@ HRESULT IDirectInputDevice::GetDeviceData(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(pdwInOut);
     NFS2_USE(dwFlags);
     NFS2_ASSERT(dynamic_cast<Mouse*>(m_resource));
-    *pdwInOut = 0;
+
+    /* buffered mouse data: one entry per axis movement / button change */
+    const DWORD DIGDD_PEEK = 1;
+    const DWORD capacity = *pdwInOut;
+    if (!rgdod)
+    {
+        /* the game only wants to throw the buffered data away (or count it) */
+        if (!(dwFlags & DIGDD_PEEK))
+            Mouse::clearEvents();
+        *pdwInOut = 0;
+        return 0;
+    }
+
+    Mouse::Event events[64];
+    const unsigned maxEvents = capacity < 64 ? capacity : 64;
+    const unsigned count = Mouse::takeEvents(events, maxEvents, !!(dwFlags & DIGDD_PEEK));
+    char* out = reinterpret_cast<char*>(rgdod);
+    for (unsigned i = 0; i < count; ++i)
+    {
+        DWORD* entry = reinterpret_cast<DWORD*>(out + i * cbObjectData);
+        entry[0] = events[i].offset;
+        entry[1] = (DWORD) events[i].data;
+        entry[2] = events[i].timeStamp;
+        entry[3] = i;
+        if (cbObjectData >= sizeof(DIDEVICEOBJECTDATA))
+            entry[4] = 0;
+    }
+    *pdwInOut = count;
     return 0;
 }
 
@@ -397,6 +430,12 @@ HRESULT IDirectInputDevice::Poll(WinApplication* app, x86::CPU& cpu)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
+    static bool s_logged = false;
+    if (!s_logged)
+    {
+        s_logged = true;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput: game polls the joystick (stick keys are off from now on)");
+    }
     app->unlockContext(cpu);
     Gamepad::poll();
     app->lockContext(cpu);

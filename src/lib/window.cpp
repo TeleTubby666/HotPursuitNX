@@ -203,6 +203,49 @@ static void pumpSteering()
     stickKey(s_steerLeftDown, pressed && value < 0, SDLK_LEFT, SDL_SCANCODE_LEFT, false);
     stickKey(s_steerRightDown, pressed && value > 0, SDLK_RIGHT, SDL_SCANCODE_RIGHT, false);
 }
+
+/*
+ * In the menus the right stick moves the mouse cursor (the game gets the movement through the
+ * DirectInput mouse device). The cursor is faster the further the stick is pushed.
+ */
+static void pumpMouseStick()
+{
+    static Uint64 s_last = 0;
+    static float s_restX = 0.f, s_restY = 0.f;
+    const Uint64 now = SDL_GetTicks();
+    const Uint64 elapsed = s_last ? now - s_last : 0;
+    s_last = now;
+    if (g_inRace || elapsed == 0 || elapsed > 200)
+    {
+        s_restX = s_restY = 0.f;
+        return;
+    }
+    Gamepad* gamepad = Gamepad::getInstance();
+    if (!gamepad)
+        return;
+    const GamepadState state = gamepad->getState();
+    const float deadZone = 4000.f;
+    float v[2] = { (float) state.axes[2], (float) state.axes[3] };
+    float move[2];
+    for (int i = 0; i < 2; ++i)
+    {
+        float magnitude = v[i] < 0 ? -v[i] : v[i];
+        magnitude = magnitude > deadZone ? (magnitude - deadZone) / (32767.f - deadZone) : 0.f;
+        if (magnitude > 1.f)
+            magnitude = 1.f;
+        /* squared: fine control near the centre, up to ~600 pixels per second at the end stop */
+        float speed = 600.f * magnitude * magnitude;
+        move[i] = (v[i] < 0 ? -speed : speed) * elapsed / 1000.f;
+    }
+    s_restX += move[0];
+    s_restY += move[1];
+    const int dx = (int) s_restX;
+    const int dy = (int) s_restY;
+    s_restX -= dx;
+    s_restY -= dy;
+    if (dx || dy)
+        Mouse::addMotion(dx, dy);
+}
 #endif
 
 
@@ -256,6 +299,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 #ifdef __SWITCH__
         pumpSwitchText();
         pumpSteering();
+        pumpMouseStick();
         if (s_keyboardRequested)
         {
             s_keyboardRequested = false;
@@ -484,6 +528,12 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 if (s_stickUsed[idx])
                                 {
                                     s_stickUsed[idx] = false;
+                                    break;
+                                }
+                                if (idx == 1 && !g_inRace)
+                                {
+                                    /* in the menus a click on the right stick is the left mouse button */
+                                    Mouse::click(0);
                                     break;
                                 }
                                 /* plain click: press now, release right after */
@@ -742,7 +792,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                         if (event.jaxis.axis >= 1 && event.jaxis.axis <= 3)
                         {
                             static bool s_lStickUp, s_lStickDown, s_rStickLeft, s_rStickRight, s_rStickUp, s_rStickDown;
-                            const int value = event.jaxis.value;
+                            /* outside a race the right stick moves the mouse cursor instead of pressing keys */
+                            const int value = (event.jaxis.axis >= 2 && !g_inRace) ? 0 : event.jaxis.value;
                             switch (event.jaxis.axis)
                             {
                             case 1: /* left stick vertical: Up / Down arrow keys, like the D-pad */
@@ -763,6 +814,35 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
 #endif
                     }
                     break;
+#ifdef __SWITCH__
+                case SDL_EVENT_FINGER_DOWN:
+                case SDL_EVENT_FINGER_MOTION:
+                case SDL_EVENT_FINGER_UP:
+                    {
+                        /* only the first finger is the mouse; a menu is operated by touching it */
+                        static SDL_FingerID s_finger = 0;
+                        static bool s_fingerActive = false;
+                        if (event.type == SDL_EVENT_FINGER_DOWN && !s_fingerActive)
+                        {
+                            s_fingerActive = true;
+                            s_finger = event.tfinger.fingerID;
+                            Mouse::touch(0, event.tfinger.x, event.tfinger.y);
+                        }
+                        else if (s_fingerActive && event.tfinger.fingerID == s_finger)
+                        {
+                            if (event.type == SDL_EVENT_FINGER_MOTION)
+                            {
+                                Mouse::touch(1, event.tfinger.x, event.tfinger.y);
+                            }
+                            else if (event.type == SDL_EVENT_FINGER_UP)
+                            {
+                                s_fingerActive = false;
+                                Mouse::touch(2, event.tfinger.x, event.tfinger.y);
+                            }
+                        }
+                    }
+                    break;
+#endif
                 case SDL_EVENT_JOYSTICK_HAT_MOTION:
                     if (event.jhat.which == 0 && event.jhat.hat == 0)
                     {
