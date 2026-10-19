@@ -209,7 +209,12 @@ int closesocket(WinApplication* app, x86::CPU& cpu, SOCKET s)
 SOCKET socket(WinApplication* app, x86::CPU& cpu, int af, int type, int protocol)
 {
     NFS2_USE(cpu);
+#ifdef __SWITCH__
+    /* no network play on the console yet: fail instead of crashing in the IPX emulation */
+    if (true)
+#else
     if (af != 6 || type != 2 || protocol != 1000) // only AF_IPX / SOCK_DGRAM is implemented
+#endif
     {
         /* e.g. the "download car" menu entry wants an internet connection */
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "socket(%d, %d, %d) is not supported, failing", af, type, protocol);
