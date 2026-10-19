@@ -22,6 +22,7 @@ Uint32 g_userEvent2  = 0;
 Uint32 g_wmCharEvent = 0;
 bool g_isNFS3        = false;
 bool g_inRace        = false;
+bool g_capturingKey  = false;
 
 static struct CustomEventRegistrar
 {
@@ -554,8 +555,9 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 sendCharacter = true;
                                 break;
                             case 1: /* B: back (Esc) in menus, handbrake (Space) in a race */
-                                if (g_inRace)
+                                if (g_inRace || g_capturingKey)
                                 {
+                                    /* also while a key is being assigned in the controls menu: Esc would cancel */
                                     result->wParam = DWORD(SDLK_SPACE);
                                     scancode = SDL_SCANCODE_SPACE;
                                 }

@@ -1,5 +1,6 @@
 #include "nfs3hp.h"
 #include <lib/thread.h>
+#include <lib/window.h>
 
 namespace nfs3hp
 {
@@ -13692,6 +13693,7 @@ L_0x0043d210:
     cpu.dl = app->getMemory<x86::reg8>(cpu.edi + x86::reg32(5) /* 0x5 */);
     // 0043d223  66895f3c               -mov word ptr [edi + 0x3c], bx
     app->getMemory<x86::reg16>(cpu.edi + x86::reg32(60) /* 0x3c */) = cpu.bx;
+    win32::g_capturingKey = true; /* hand-written: a controls row now waits for a key */
     // 0043d227  80ca04                 -or dl, 4
     cpu.dl |= x86::reg8(x86::sreg8(4 /*0x4*/));
     // 0043d22a  8935943d5f00           -mov dword ptr [0x5f3d94], esi
@@ -13799,6 +13801,7 @@ L_0x0043d271:
 L_0x0043d292:
     // 0043d292  66c7413cffff           -mov word ptr [ecx + 0x3c], 0xffff
     app->getMemory<x86::reg16>(cpu.ecx + x86::reg32(60) /* 0x3c */) = 65535 /*0xffff*/;
+    win32::g_capturingKey = false; /* hand-written */
 L_0x0043d298:
     // 0043d298  8b45fc                 -mov eax, dword ptr [ebp - 4]
     cpu.eax = app->getMemory<x86::reg32>(cpu.ebp + x86::reg32(-4) /* -0x4 */);
@@ -14066,6 +14069,7 @@ L_0x0043d386:
 L_0x0043d3d1:
     // 0043d3d1  66c7413cffff           -mov word ptr [ecx + 0x3c], 0xffff
     app->getMemory<x86::reg16>(cpu.ecx + x86::reg32(60) /* 0x3c */) = 65535 /*0xffff*/;
+    win32::g_capturingKey = false; /* hand-written */
     // 0043d3d7  e874020000             -call 0x43d650
     cpu.esp -= 4;
     sub_43d650(app, cpu);

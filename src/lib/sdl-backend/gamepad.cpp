@@ -160,10 +160,20 @@ namespace
         /* touch */
         bool touching;
         float cursorX, cursorY;            /* cursor position in game pixels as the game should see it */
+        /*
+         * The game only knows relative movement and we do not know where its cursor really is.
+         * A touch therefore first pushes the cursor into the top left corner (the game keeps it
+         * on the screen) and only then, one game frame later, moves it to the finger.
+         * syncStage: 0 = nothing pending, 1 = corner movement not yet handed to the game,
+         * 2 = corner movement handed over, target movement still to do.
+         */
+        int syncStage;
+        float targetX, targetY;
+        bool pendingPress;
         MouseData()
             :   mutex(SDL_CreateMutex()), dx(0), dy(0), buttons(), releaseAt(),
                 windowW(0), windowH(0), viewX(0), viewY(0), viewW(0), viewH(0), gameW(640), gameH(480),
-                touching(false), cursorX(320.f), cursorY(240.f)
+                touching(false), cursorX(320.f), cursorY(240.f), syncStage(0), targetX(0.f), targetY(0.f), pendingPress(false)
         {
         }
     };
@@ -212,6 +222,33 @@ namespace
             return;
         d.buttons[button] = down;
         pushEvent(d, 12 + button, down ? 0x80 : 0);
+    }
+
+    /* second step of a touch: the game has seen the corner movement, now go to the finger */
+    void advanceSync(MouseData& d)
+    {
+        if (d.syncStage != 2)
+            return;
+        d.syncStage = 0;
+        const int dx = (int) d.targetX;
+        const int dy = (int) d.targetY;
+        applyMotion(d, dx, dy);
+        d.cursorX = (float) dx;
+        d.cursorY = (float) dy;
+        if (d.pendingPress)
+        {
+            d.pendingPress = false;
+            applyButton(d, 0, true);
+            if (!d.touching)
+                d.releaseAt[0] = SDL_GetTicks() + 80;
+        }
+    }
+
+    /* the corner movement has been handed to the game */
+    void finishSyncStep(MouseData& d)
+    {
+        if (d.syncStage == 1)
+            d.syncStage = 2;
     }
 
     /* releases whose time has come */
@@ -280,12 +317,14 @@ void Mouse::takeState(int& dx, int& dy, unsigned char buttons[8])
 {
     MouseData& d = mouseData();
     SDL_LockMutex(d.mutex);
+    advanceSync(d);
     applyDelayedReleases(d);
     dx = d.dx;
     dy = d.dy;
     d.dx = d.dy = 0;
     for (int i = 0; i < 8; ++i)
         buttons[i] = d.buttons[i] ? 0x80 : 0x00;
+    finishSyncStep(d);
     SDL_UnlockMutex(d.mutex);
 }
 
@@ -293,6 +332,7 @@ unsigned Mouse::takeEvents(Event* events, unsigned maxEvents, bool peek)
 {
     MouseData& d = mouseData();
     SDL_LockMutex(d.mutex);
+    advanceSync(d);
     applyDelayedReleases(d);
     unsigned count = (unsigned) d.events.size();
     if (count > maxEvents)
@@ -300,7 +340,10 @@ unsigned Mouse::takeEvents(Event* events, unsigned maxEvents, bool peek)
     for (unsigned i = 0; i < count; ++i)
         events[i] = d.events[i];
     if (!peek)
+    {
         d.events.erase(d.events.begin(), d.events.begin() + count);
+        finishSyncStep(d);
+    }
     SDL_UnlockMutex(d.mutex);
     return count;
 }
@@ -336,8 +379,10 @@ void Mouse::touch(int phase, float x, float y)
     {
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch up");
         d.touching = false;
-        /* keep the button down for a moment so that a quick tap is not lost between two game frames */
-        d.releaseAt[0] = SDL_GetTicks() + 80;
+        /* keep the button down for a moment so that a quick tap is not lost between two game frames;
+           when the corner step is still pending the release is scheduled after the press */
+        if (d.syncStage == 0)
+            d.releaseAt[0] = SDL_GetTicks() + 80;
         SDL_UnlockMutex(d.mutex);
         return;
     }
@@ -352,19 +397,35 @@ void Mouse::touch(int phase, float x, float y)
         if (gx > d.gameW - 1) gx = (float) (d.gameW - 1);
         if (gy > d.gameH - 1) gy = (float) (d.gameH - 1);
 
-        /* the game only understands relative movement, so move its cursor by the difference
-           to where it should currently be */
-        const int dx = (int) (gx - d.cursorX);
-        const int dy = (int) (gy - d.cursorY);
-        d.cursorX += dx;
-        d.cursorY += dy;
-        applyMotion(d, dx, dy);
-        if (phase == 0)
+        if (!d.touching)
         {
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch down: game position %d,%d (moved %d,%d)",
-                        (int) d.cursorX, (int) d.cursorY, dx, dy);
+            /* new touch: corner first, then the finger position (see syncStage) */
             d.touching = true;
-            applyButton(d, 0, true);
+            d.releaseAt[0] = 0;
+            d.targetX = gx;
+            d.targetY = gy;
+            d.pendingPress = true;
+            if (d.syncStage == 0)
+            {
+                d.syncStage = 1;
+                applyMotion(d, -4000, -4000);
+                d.cursorX = d.cursorY = 0.f;
+            }
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "touch down: game position %d,%d", (int) gx, (int) gy);
+        }
+        else if (d.syncStage != 0)
+        {
+            d.targetX = gx;
+            d.targetY = gy;
+        }
+        else
+        {
+            /* finger moves: follow it with relative movement */
+            const int dx = (int) (gx - d.cursorX);
+            const int dy = (int) (gy - d.cursorY);
+            d.cursorX += dx;
+            d.cursorY += dy;
+            applyMotion(d, dx, dy);
         }
     }
     SDL_UnlockMutex(d.mutex);
