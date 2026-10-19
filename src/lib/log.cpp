@@ -200,11 +200,17 @@ static void dumpThreads(const char* reason)
     }
 }
 
+static SDL_AtomicInt s_watchdogStop;
+static SDL_Thread* s_watchdogThread;
+
 static int SDLCALL watchdogMain(void*)
 {
-    for (;;)
+    while (!SDL_GetAtomicInt(&s_watchdogStop))
     {
-        SDL_Delay(1000);
+        for (int i = 0; i < 20 && !SDL_GetAtomicInt(&s_watchdogStop); ++i)
+            SDL_Delay(50);
+        if (SDL_GetAtomicInt(&s_watchdogStop))
+            break;
         Uint64 now = SDL_GetTicks();
         bool dump = false;
         char reason[128];
@@ -239,9 +245,18 @@ void startWatchdog()
     if (started || !s_logFile)
         return;
     started = true;
-    SDL_Thread* t = SDL_CreateThread(watchdogMain, "watchdog", nullptr);
-    if (t)
-        SDL_DetachThread(t);
+    s_watchdogThread = SDL_CreateThread(watchdogMain, "watchdog", nullptr);
+}
+
+void stopWatchdog()
+{
+    /* the thread must be gone before the program exits: on the Switch the loader unmaps the
+       program while a leftover thread would still run its code, which crashes the console */
+    if (!s_watchdogThread)
+        return;
+    SDL_SetAtomicInt(&s_watchdogStop, 1);
+    SDL_WaitThread(s_watchdogThread, nullptr);
+    s_watchdogThread = nullptr;
 }
 
 void logPrintf(const char* fmt, ...)

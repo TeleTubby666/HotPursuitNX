@@ -75,7 +75,8 @@ int main(int argc, char* argv[])
      * The way out of the process is still being worked out: exiting crashes on the console.
      * sdmc:/switch/nfs3hp/exitmode.txt (a single digit) selects the variant to try.
      */
-    int exitMode = 1;
+    win32::stopWatchdog();
+    int exitMode = 0;
     if (FILE* f = fopen("sdmc:/switch/nfs3hp/exitmode.txt", "r"))
     {
         int c = fgetc(f);

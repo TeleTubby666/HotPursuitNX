@@ -35,6 +35,7 @@ void logPrintf(const char* fmt, ...)
  * (as an offset that aarch64-none-elf-addr2line can resolve).
  */
 void startWatchdog();
+void stopWatchdog();
 void watchdogHeartbeat();
 void watchdogEnter(const char* what, unsigned arg, const char* detail);
 void watchdogLeave();
