@@ -56,6 +56,10 @@ The Switch controls are mapped to the original keyboard commands used by both ga
 | Right stick up / left / right | Free keys U / J / M, assignable |
 | Minus (-) | Shift down (manual) |
 
+### Force feedback
+
+The game's force feedback effects are turned into rumble of the controller (the strength follows the running effects; spring, damper and friction forces have no equivalent and are ignored). The game only offers force feedback if the controller has rumble motors.
+
 ### Mouse in the menus
 
 The game is operated with a mouse cursor in its menus. On the Switch:

@@ -1,4 +1,5 @@
 #include <winapi/dinput/idirectinputdevice.h>
+#include <winapi/dinput/idirectinputeffect.h>
 #include <winapi/wrapper.h>
 #include <lib/gamepad.h>
 #include <lib/window.h>
@@ -116,7 +117,14 @@ HRESULT IDirectInputDevice::GetCapabilities(WinApplication* app, x86::CPU& cpu,
     NFS2_ASSERT(lpDIDevCaps->dwSize == sizeof(DIDEVCAPS));
     memset(lpDIDevCaps, 0, sizeof(DIDEVCAPS));
     lpDIDevCaps->dwSize = sizeof(DIDEVCAPS);
-    lpDIDevCaps->dwFlags = DIDC_ATTACHED | DIDC_POLLEDDATAFORMAT /* | DIDC_FORCEFEEDBACK */;
+    lpDIDevCaps->dwFlags = DIDC_ATTACHED | DIDC_POLLEDDATAFORMAT;
+    if (dynamic_cast<Gamepad*>(m_resource) && Gamepad::hasRumble())
+    {
+        /* the rumble motors stand in for a force feedback wheel */
+        lpDIDevCaps->dwFlags |= DIDC_FORCEFEEDBACK;
+        lpDIDevCaps->dwFFSamplePeriod = 10000;
+        lpDIDevCaps->dwFFMinTimeResolution = 10000;
+    }
     lpDIDevCaps->dwDevType = 4;
     lpDIDevCaps->dwButtons = dynamic_cast<Input*>(m_resource)->getButtonCount();
     lpDIDevCaps->dwAxes = dynamic_cast<Input*>(m_resource)->getAxesCount();
@@ -126,13 +134,43 @@ HRESULT IDirectInputDevice::GetCapabilities(WinApplication* app, x86::CPU& cpu,
 HRESULT IDirectInputDevice::EnumObjects(WinApplication* app, x86::CPU& cpu,
                                         LPDIENUMDEVICEOBJECTSCALLBACK lpCallback, x86::reg32 pvRef, DWORD dwFlags)
 {
-    NFS2_USE(app);
-    NFS2_USE(cpu);
-    NFS2_USE(lpCallback);
-    NFS2_USE(pvRef);
     NFS2_USE(dwFlags);
-    NFS2_ASSERT(false);
-    return 1;
+    /* only the joystick axes are described; they are marked as force feedback actuators */
+    if (!dynamic_cast<Gamepad*>(m_resource))
+        return 0;
+    static const char* const names[] = { "X Axis", "Y Axis", "Z Axis", "X Rotation", "Y Rotation", "Z Rotation" };
+    static const GUID guids[] =
+    {
+        { 0xA36D02E0, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } },
+        { 0xA36D02E1, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } },
+        { 0xA36D02E2, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } },
+        { 0xA36D02F4, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } },
+        { 0xA36D02F5, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } },
+        { 0xA36D02E3, 0xC9F3, 0x11CF, { 0xBF,0xC7,0x44,0x45,0x53,0x54,0x00,0x00 } }
+    };
+    MemMap mem(1024);
+    DIDEVICEOBJECTINSTANCE* object = &app->getMemory<DIDEVICEOBJECTINSTANCE>(mem.getBlockStart());
+    const unsigned axes = (unsigned) dynamic_cast<Input*>(m_resource)->getAxesCount();
+    for (unsigned i = 0; i < 6 && i < axes; ++i)
+    {
+        memset(object, 0, sizeof(*object));
+        object->dwSize = sizeof(DIDEVICEOBJECTINSTANCE);
+        object->guidType = guids[i];
+        object->dwOfs = i * 4;                          /* position in DIJOYSTATE */
+        object->dwType = 0x3 | (i << 8);                /* DIDFT_ABSAXIS | instance */
+        object->dwFlags = i < 2 && Gamepad::hasRumble() ? 0x1 : 0;   /* DIDOI_FFACTUATOR */
+        object->dwFFMaxForce = 10000;
+        object->dwFFForceResolution = 100;
+        strcpy(object->tszName, names[i]);
+        cpu.esp -= 12;
+        app->getMemory<x86::reg32>(cpu.esp + 0) = lpCallback;
+        app->getMemory<x86::reg32>(cpu.esp + 4) = mem.getBlockStart();
+        app->getMemory<x86::reg32>(cpu.esp + 8) = pvRef;
+        app->dynamic_call(lpCallback, cpu);
+        if (!cpu.eax)
+            break;
+    }
+    return 0;
 }
 
 HRESULT IDirectInputDevice::GetProperty(WinApplication* app, x86::CPU& cpu,
@@ -353,9 +391,15 @@ HRESULT IDirectInputDevice::GetDeviceInfo(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(pdidi);
-    NFS2_ASSERT(false);
-    return 1;
+    if (pdidi)
+    {
+        memset(pdidi, 0, sizeof(*pdidi));
+        pdidi->dwSize = sizeof(DIDEVICEINSTANCE);
+        pdidi->dwDevType = 4;
+        strcpy(pdidi->tszInstanceName, "NFS Gamepad");
+        strcpy(pdidi->tszProductName, "NFS Gamepad");
+    }
+    return 0;
 }
 
 HRESULT IDirectInputDevice::RunControlPanel(WinApplication* app, x86::CPU& cpu,
@@ -384,26 +428,57 @@ HRESULT IDirectInputDevice::Initialize(WinApplication* app, x86::CPU& cpu,
 HRESULT IDirectInputDevice::CreateEffect(WinApplication* app, x86::CPU& cpu,
                                          REFGUID rguid, LPCDIEFFECT lpeff, Packed<IUnknown>* ppdeff, LPUNKNOWN punkOuter)
 {
-    NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(rguid);
-    NFS2_USE(lpeff);
-    NFS2_USE(ppdeff);
     NFS2_USE(punkOuter);
-    NFS2_ASSERT(false);
-    return 1;
+    const HRESULT notSupported = 0x80004001;        /* E_NOTIMPL */
+    const HRESULT invalidParameter = 0x80070057;    /* E_INVALIDARG */
+    if (!dynamic_cast<Gamepad*>(m_resource) || !Gamepad::hasRumble())
+        return notSupported;
+    ForceFeedback::Type type;
+    if (!rguid || !ppdeff || !IDirectInputEffect::typeFromGuid(*rguid, type))
+    {
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: unknown effect requested");
+        return invalidParameter;
+    }
+    const int id = ForceFeedback::create(type);
+    EffectResource* resource = new EffectResource(id, *rguid);
+    app->allocateResource(resource);
+    if (lpeff)
+        IDirectInputEffect::applyParameters(app, id, reinterpret_cast<const DiEffect*>(lpeff), 0x1ff /* DIEP_ALLPARAMS */);
+    *ppdeff = Packed<IUnknown>(com::ComAlloc(app));
+    new (&app->getMemory<IDirectInputEffect>(*ppdeff)) IDirectInputEffect(resource);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: effect %d created (type %d)", id, (int) type);
+    return 0;
 }
 
 HRESULT IDirectInputDevice::EnumEffects(WinApplication* app, x86::CPU& cpu,
-                                        LPDIENUMEFFECTSCALLBACK lpCallback, LPVOID pvRef, DWORD dwEffType)
+                                        LPDIENUMEFFECTSCALLBACK lpCallback, Packed<void> pvRef, DWORD dwEffType)
 {
-    NFS2_USE(app);
-    NFS2_USE(cpu);
-    NFS2_USE(lpCallback);
-    NFS2_USE(pvRef);
-    NFS2_USE(dwEffType);
-    NFS2_ASSERT(false);
-    return 1;
+    if (!dynamic_cast<Gamepad*>(m_resource) || !Gamepad::hasRumble())
+        return 0;
+    MemMap mem(1024);
+    DIEffectInfo* info = &app->getMemory<DIEffectInfo>(mem.getBlockStart());
+    for (unsigned i = 0; i < IDirectInputEffect::effectCount(); ++i)
+    {
+        const DWORD type = IDirectInputEffect::effectType(i);
+        if (dwEffType != 0 && dwEffType != 0xffffffffu && (dwEffType & 0xff) != type)
+            continue;
+        memset(info, 0, sizeof(*info));
+        info->dwSize = sizeof(DIEffectInfo);
+        info->guid = IDirectInputEffect::effectGuid(i);
+        info->dwEffType = type;
+        info->dwStaticParams = 0x1ff;
+        info->dwDynamicParams = 0x1ff;
+        strcpy(info->tszName, IDirectInputEffect::effectName(i));
+        cpu.esp -= 12;
+        app->getMemory<x86::reg32>(cpu.esp + 0) = lpCallback;
+        app->getMemory<x86::reg32>(cpu.esp + 4) = mem.getBlockStart();
+        app->getMemory<x86::reg32>(cpu.esp + 8) = pvRef;
+        app->dynamic_call(lpCallback, cpu);
+        if (!cpu.eax)
+            break;
+    }
+    return 0;
 }
 
 HRESULT IDirectInputDevice::GetEffectInfo(WinApplication* app, x86::CPU& cpu,
@@ -411,10 +486,23 @@ HRESULT IDirectInputDevice::GetEffectInfo(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(pdei);
-    NFS2_USE(rguid);
-    NFS2_ASSERT(false);
-    return 1;
+    if (!pdei || !rguid)
+        return 0x80070057;
+    for (unsigned i = 0; i < IDirectInputEffect::effectCount(); ++i)
+    {
+        if (*rguid == IDirectInputEffect::effectGuid(i))
+        {
+            memset(pdei, 0, sizeof(*pdei));
+            pdei->dwSize = sizeof(DIEffectInfo);
+            pdei->guid = IDirectInputEffect::effectGuid(i);
+            pdei->dwEffType = IDirectInputEffect::effectType(i);
+            pdei->dwStaticParams = 0x1ff;
+            pdei->dwDynamicParams = 0x1ff;
+            strcpy(pdei->tszName, IDirectInputEffect::effectName(i));
+            return 0;
+        }
+    }
+    return 0x80070057;
 }
 
 HRESULT IDirectInputDevice::GetForceFeedbackState(WinApplication* app, x86::CPU& cpu,
@@ -422,9 +510,9 @@ HRESULT IDirectInputDevice::GetForceFeedbackState(WinApplication* app, x86::CPU&
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(pdwOut);
-    NFS2_ASSERT(false);
-    return 1;
+    if (pdwOut)
+        *pdwOut = DIGFFS_ACTUATORSON | DIGFFS_POWERON | DIGFFS_STOPPED;
+    return 0;
 }
 
 HRESULT IDirectInputDevice::SendForceFeedbackCommand(WinApplication* app, x86::CPU& cpu,
@@ -432,7 +520,16 @@ HRESULT IDirectInputDevice::SendForceFeedbackCommand(WinApplication* app, x86::C
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(dwFlags);
+    if (dwFlags & (DISFFC_RESET | DISFFC_STOPALL))
+        ForceFeedback::stopAll();
+    if (dwFlags & DISFFC_PAUSE)
+        ForceFeedback::setPaused(true);
+    if (dwFlags & DISFFC_CONTINUE)
+        ForceFeedback::setPaused(false);
+    if (dwFlags & DISFFC_SETACTUATORSON)
+        ForceFeedback::setActuators(true);
+    if (dwFlags & DISFFC_SETACTUATORSOFF)
+        ForceFeedback::setActuators(false);
     return 0;
 }
 
@@ -444,8 +541,7 @@ HRESULT IDirectInputDevice::EnumCreatedEffectObjects(WinApplication* app, x86::C
     NFS2_USE(lpCallback);
     NFS2_USE(pvRef);
     NFS2_USE(fl);
-    NFS2_ASSERT(false);
-    return 1;
+    return 0;
 }
 
 HRESULT IDirectInputDevice::Escape(WinApplication* app, x86::CPU& cpu,
@@ -454,8 +550,7 @@ HRESULT IDirectInputDevice::Escape(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_USE(pesc);
-    NFS2_ASSERT(false);
-    return 1;
+    return 0;
 }
 
 HRESULT IDirectInputDevice::Poll(WinApplication* app, x86::CPU& cpu)

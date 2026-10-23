@@ -315,7 +315,9 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
            its track data. window.cpp uses this to tell menus from racing. */
         std::string lower(m_filename);
         std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return std::tolower(c); });
-        if (lower.find("/menus/setup.mnu") != std::string::npos)
+        /* setup.mnu: the front end starts; postgame.mnu: back in the menus after a race
+           (the menus are not reloaded then, see the log of a second race) */
+        if (lower.find("/menus/setup.mnu") != std::string::npos || lower.find("/menus/postgame.mnu") != std::string::npos)
             g_inRace = false;
         else if (lower.find("/tracks/") != std::string::npos && lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".frd") == 0)
             g_inRace = true;

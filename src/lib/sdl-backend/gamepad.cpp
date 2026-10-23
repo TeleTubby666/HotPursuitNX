@@ -31,6 +31,8 @@ void Gamepad::updateKeys()
         init();
     }
 
+    ForceFeedback::update();
+
     if (s_gp1)
     {
         SDL_UpdateJoysticks();
@@ -487,6 +489,19 @@ void Gamepad::init()
 Gamepad* Gamepad::getInstance()
 {
     return s_gp1;
+}
+
+bool Gamepad::hasRumble()
+{
+    if (!s_gp1 || !s_gp1->m_joystick)
+        return false;
+    return SDL_GetBooleanProperty(SDL_GetJoystickProperties(s_gp1->m_joystick), SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false);
+}
+
+void Gamepad::rumble(Uint16 low, Uint16 high, Uint32 durationMs)
+{
+    if (s_gp1 && s_gp1->m_joystick)
+        SDL_RumbleJoystick(s_gp1->m_joystick, low, high, durationMs);
 }
 
 x86::reg32 Gamepad::getCount()

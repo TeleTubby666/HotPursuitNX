@@ -79,9 +79,45 @@ public:
     static void updateKeys();
     static void init();
     static Gamepad* getInstance();
+
+    /* rumble motors of the shared pad (the one that also feeds the keys); false when there are none */
+    static bool hasRumble();
+    static void rumble(Uint16 low, Uint16 high, Uint32 durationMs);
 private:
     SDL_Joystick* m_joystick;
 };
+
+/*
+ * Force feedback. The game describes its effects the DirectInput way; a game pad has no
+ * force feedback wheel, so the strength of the running effects is turned into rumble.
+ */
+namespace ForceFeedback
+{
+    enum Type { Constant, Ramp, Periodic, Condition, Custom };
+
+    struct Params
+    {
+        Type     type;
+        int      magnitude;     /* 0..10000 */
+        int      start, end;    /* ramp: -10000..10000 */
+        unsigned period;        /* periodic, milliseconds, 0 = steady */
+        unsigned gain;          /* 0..10000 */
+        unsigned durationMs;    /* 0 = until stopped */
+    };
+
+    int    create(Type type);
+    void   remove(int id);
+    void   setParams(int id, const Params& params);
+    Params getParams(int id);
+    void   start(int id, unsigned iterations, bool solo);
+    void   stop(int id);
+    bool   isPlaying(int id);
+    void   stopAll();
+    void   setPaused(bool paused);
+    void   setActuators(bool on);
+    /* called regularly; turns the running effects into rumble */
+    void   update();
+}
 
 }
 

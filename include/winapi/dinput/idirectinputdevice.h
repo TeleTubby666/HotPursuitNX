@@ -192,7 +192,7 @@ private:
     HRESULT CreateEffect(WinApplication* app, x86::CPU& cpu,
                          REFGUID rguid, LPCDIEFFECT lpeff, Packed<IUnknown>* ppdeff, LPUNKNOWN punkOuter);
     HRESULT EnumEffects(WinApplication* app, x86::CPU& cpu,
-                        LPDIENUMEFFECTSCALLBACK lpCallback, LPVOID pvRef, DWORD dwEffType);
+                        LPDIENUMEFFECTSCALLBACK lpCallback, Packed<void> pvRef, DWORD dwEffType);
     HRESULT GetEffectInfo(WinApplication* app, x86::CPU& cpu,
                           LPDIEffectInfo pdei, REFGUID rguid);
     HRESULT GetForceFeedbackState(WinApplication* app, x86::CPU& cpu,
