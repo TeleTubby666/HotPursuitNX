@@ -595,6 +595,8 @@ static void grClipWindow(WinApplication* app, x86::CPU& cpu,
     static int s_budget = 40;
     if (s_budget-- > 0)
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "grClipWindow(%d, %d, %d, %d)", (int) minX, (int) minY, (int) maxX, (int) maxY);
+    if (s_glideRenderer)
+        s_glideRenderer->setClip((int) minX, (int) minY, (int) maxX, (int) maxY);
     //NFS2_ASSERT(false);
 }
 

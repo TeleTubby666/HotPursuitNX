@@ -73,6 +73,7 @@ public:
     void setTextureData(x86::reg32 tmu, x86::reg32 address, const void* data,
                         x86::reg32 largeMipmap, x86::reg32 smallMimmap, TextureFormat format);
     void drawTriangle(const GrVertex* a, const GrVertex* b, const GrVertex* c);
+    void setClip(int minX, int minY, int maxX, int maxY);
     
 private:
     void compileShaders();
@@ -80,6 +81,7 @@ private:
 
 private:
     Renderer*               m_renderer;
+    int                     m_clip[4];
     unsigned int            m_depthBuffer;
     unsigned int            m_framebuffer;
     GlVertex*               m_vertices;
