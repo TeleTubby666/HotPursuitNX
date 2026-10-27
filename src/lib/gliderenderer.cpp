@@ -1,8 +1,6 @@
 #include <lib/gliderenderer.h>
 #include <lib/renderer.h>
 #include <lib/glidetmu.h>
-#include <cstdio>
-#include <cstring>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
 
@@ -124,7 +122,6 @@ GlideRenderer::GlideRenderer(Renderer* renderer)
     ,   m_zTest(true)
     ,   m_alphaBlend(true)
 {
-    m_clip[0] = m_clip[1] = m_clip[2] = m_clip[3] = 0;
     m_tmus[0] = new GlideTMU(s_atlasSize);
     //m_tmus[1] = new GlideTMU(s_atlasSize);
     m_renderer->setCurrent();
@@ -340,16 +337,6 @@ void GlideRenderer::flush()
     m_drawCalls.push_back(dcall);
 }
 
-namespace
-{
-    /* diagnosis for a real widescreen mode: how many triangles are drawn under which clip window */
-    struct ClipStat { int clip[4]; int triangles; };
-    ClipStat s_clipStats[8];
-    int s_clipStatCount = 0;
-    int s_clipFrames = 0;
-    int s_clipLogs = 25;
-}
-
 void GlideRenderer::swap()
 {
     m_renderer->setCurrent();
@@ -417,20 +404,6 @@ void GlideRenderer::swap()
     m_renderer->present();
     m_renderer->clearCurrent();
     m_vertexCount = 0;
-    if (++s_clipFrames % 150 == 0 && s_clipLogs > 0)
-    {
-        --s_clipLogs;
-        char text[400] = "";
-        for (int i = 0; i < s_clipStatCount; ++i)
-        {
-            char one[64];
-            snprintf(one, sizeof(one), " [%d,%d,%d,%d]=%d", s_clipStats[i].clip[0], s_clipStats[i].clip[1],
-                     s_clipStats[i].clip[2], s_clipStats[i].clip[3], s_clipStats[i].triangles);
-            strncat(text, one, sizeof(text) - strlen(text) - 1);
-        }
-        SDL_Log("glide: triangles per clip window in the last frame(s):%s", text);
-    }
-    s_clipStatCount = 0;
 }
 
 x86::reg32 GlideRenderer::textureMemStart(x86::reg32 tmu)
@@ -567,30 +540,8 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
     m_renderer->clearCurrent();
 }
 
-
-void GlideRenderer::setClip(int minX, int minY, int maxX, int maxY)
-{
-    m_clip[0] = minX;
-    m_clip[1] = minY;
-    m_clip[2] = maxX;
-    m_clip[3] = maxY;
-}
-
 void GlideRenderer::drawTriangle(const GrVertex* a, const GrVertex* b, const GrVertex* c)
 {
-    {
-        int i = 0;
-        while (i < s_clipStatCount && memcmp(s_clipStats[i].clip, m_clip, sizeof(m_clip)) != 0)
-            ++i;
-        if (i == s_clipStatCount && s_clipStatCount < 8)
-        {
-            memcpy(s_clipStats[i].clip, m_clip, sizeof(m_clip));
-            s_clipStats[i].triangles = 0;
-            ++s_clipStatCount;
-        }
-        if (i < s_clipStatCount)
-            ++s_clipStats[i].triangles;
-    }
     NFS2_ASSERT(65535.f - a->ooz >= 0.f);
     NFS2_ASSERT(65535.f - b->ooz >= 0.f);
     NFS2_ASSERT(65535.f - c->ooz >= 0.f);

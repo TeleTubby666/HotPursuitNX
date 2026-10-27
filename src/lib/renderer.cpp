@@ -1,5 +1,3 @@
-#include <cstdio>
-#include <cstdlib>
 #include <lib/renderer.h>
 #include <lib/window.h>
 #include <lib/gamepad.h>
@@ -111,57 +109,6 @@ void Renderer::present()
         vpX = 0;
         vpY = (h - vpH) / 2;
     }
-
-#ifdef __SWITCH__
-    {
-        /*
-         * Optional zoom with the aspect ratio kept (the edges are cut off): a number such as 1.2 in
-         * sdmc:/switch/nfs3hp/zoom.txt (or nfs2se), or the word "fill" to fill the whole screen.
-         */
-        static float s_zoom = -1.f;
-        static bool s_fill = false;
-        if (s_zoom < 0.f)
-        {
-            s_zoom = 1.f;
-            FILE* f = fopen("sdmc:/switch/nfs3hp/zoom.txt", "r");
-            if (!f)
-                f = fopen("sdmc:/switch/nfs2se/zoom.txt", "r");
-            if (f)
-            {
-                char text[32] = "";
-                if (fgets(text, sizeof(text), f))
-                {
-                    if (text[0] == 'f' || text[0] == 'F')
-                        s_fill = true;
-                    else
-                    {
-                        const float v = (float) atof(text);
-                        if (v >= 1.f && v <= 3.f)
-                            s_zoom = v;
-                    }
-                }
-                fclose(f);
-            }
-            SDL_Log("renderer: zoom %.2f%s", s_zoom, s_fill ? " (fill)" : "");
-        }
-        float zoom = s_zoom;
-        if (s_fill)
-        {
-            const float zx = float(w) / float(vpW);
-            const float zy = float(h) / float(vpH);
-            zoom = zx > zy ? zx : zy;
-        }
-        if (zoom > 1.001f)
-        {
-            const int newW = int(vpW * zoom + 0.5f);
-            const int newH = int(vpH * zoom + 0.5f);
-            vpX -= (newW - vpW) / 2;
-            vpY -= (newH - vpH) / 2;
-            vpW = newW;
-            vpH = newH;
-        }
-    }
-#endif
 
     Mouse::setView(w, h, vpX, vpY, vpW, vpH, int(m_width), int(m_height));
 

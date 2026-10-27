@@ -229,16 +229,7 @@ HRESULT IDirectInputEffect::Start(WinApplication* app, x86::CPU& cpu, DWORD dwIt
     if (effect())
     {
         logEffect("start", effect()->id);
-        {
-            static int s_budget = 150;
-            if (s_budget > 0)
-            {
-                --s_budget;
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: effect %d start iterations=%u flags=0x%x", effect()->id, (unsigned) dwIterations, (unsigned) dwFlags);
-            }
-        }
-        /* DIES_SOLO would silence the other effects (the engine) on a real wheel; a pad rumbles with all of them */
-        ForceFeedback::start(effect()->id, dwIterations, false);
+        ForceFeedback::start(effect()->id, dwIterations, !!(dwFlags & DIES_SOLO));
     }
     return 0;
 }

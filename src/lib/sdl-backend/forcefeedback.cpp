@@ -2,7 +2,6 @@
 #include <SDL3/SDL.h>
 #include <cmath>
 #include <cstdio>
-#include <cstring>
 #include <vector>
 
 
@@ -179,18 +178,11 @@ void update()
     }
 
     float strength = 0.f;
-    char dbgPlaying[64] = "";
     for (size_t i = 0; i < s.effects.size(); ++i)
     {
         Effect& e = s.effects[i];
         if (!e.playing)
             continue;
-        {
-            char one[12];
-            snprintf(one, sizeof(one), "%d ", e.id);
-            if (strlen(dbgPlaying) + strlen(one) < sizeof(dbgPlaying))
-                strcat(dbgPlaying, one);
-        }
         if (e.endTime && now >= e.endTime)
         {
             e.playing = false;
@@ -219,8 +211,8 @@ void update()
             level = e.params.magnitude / 10000.f;
             if (e.params.period > 20)
             {
-                /* sampling the sine at frame times only gives random flicker; the mean level is what a motor shows */
-                level *= 0.6f;
+                const float phase = (float) ((now - e.startTime) % e.params.period) / (float) e.params.period;
+                level *= 0.5f + 0.5f * std::sin(phase * 6.2831853f);
             }
             break;
         default:
@@ -236,17 +228,6 @@ void update()
             strength = level;
     }
 
-    {
-        /* diagnosis: a time series of the force while something plays */
-        static Uint64 s_lastDbg = 0;
-        static int s_dbgBudget = 1500;
-        if (s_dbgBudget > 0 && (strength > 0.f || s.lastStrength > 0.f) && now - s_lastDbg >= 100)
-        {
-            --s_dbgBudget;
-            s_lastDbg = now;
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ff: strength %.2f, playing: %s", strength, dbgPlaying);
-        }
-    }
     /* the rumble is refreshed regularly because it only runs for a short time */
     const bool changed = (strength - s.lastStrength > 0.03f) || (s.lastStrength - strength > 0.03f)
                          || (strength == 0.f) != (s.lastStrength == 0.f);
@@ -275,12 +256,11 @@ void update()
                 SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: gain factor %.2f from ffgain.txt", s_userGain);
             }
         }
-        float shaped = strength > 0.f ? std::pow(strength, 0.4f) * s_userGain : 0.f;
+        float shaped = strength > 0.f ? std::pow(strength, 0.45f) * s_userGain : 0.f;
         if (shaped > 1.f)
             shaped = 1.f;
-        /* the Switch limits the sum of both motor amplitudes to 1.0: stronger values were lost (no rumble at all) */
-        const Uint16 low = (Uint16) (shaped * 0.6f * 65535.f);
-        const Uint16 high = (Uint16) (shaped * 0.4f * 65535.f);
+        const Uint16 low = (Uint16) (shaped * 65535.f);
+        const Uint16 high = (Uint16) (shaped * 52000.f);
         Gamepad::rumble(low, high, strength > 0.f ? 250 : 0);
         return;
     }

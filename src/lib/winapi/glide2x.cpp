@@ -412,7 +412,6 @@ static x86::reg32 grSstWinOpen(WinApplication* app, x86::CPU& cpu, HWND hWnd,
     NFS2_USE(nColBuffers);
     NFS2_USE(nAuxBuffers);
 
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "grSstWinOpen: resolution enum %d", (int) resolution);
     x86::sreg32 width, height;
     switch(resolution)
     {
@@ -592,11 +591,10 @@ static void grClipWindow(WinApplication* app, x86::CPU& cpu,
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    static int s_budget = 40;
-    if (s_budget-- > 0)
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "grClipWindow(%d, %d, %d, %d)", (int) minX, (int) minY, (int) maxX, (int) maxY);
-    if (s_glideRenderer)
-        s_glideRenderer->setClip((int) minX, (int) minY, (int) maxX, (int) maxY);
+    NFS2_USE(minX);
+    NFS2_USE(minY);
+    NFS2_USE(maxX);
+    NFS2_USE(maxY);
     //NFS2_ASSERT(false);
 }
 

@@ -220,20 +220,16 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
     Mouse* mouse = dynamic_cast<Mouse*>(m_resource);
     memset(lpvData, 0, cbData);
 #ifdef __SWITCH__
-    /* NFS2: the mouse (right stick / touch) is off by default because moving it made the picture flicker;
-       sdmc:/switch/nfs2se/mouse.txt switches it on */
+    /* diagnosis for NFS2: with sdmc:/switch/nfs2se/nomouse.txt the game gets no mouse data at all */
     static int s_noMouse = -1;
     if (mouse && s_noMouse < 0)
     {
-        s_noMouse = 0;
-        if (!g_isNFS3)
+        FILE* f = !g_isNFS3 ? fopen("sdmc:/switch/nfs2se/nomouse.txt", "r") : nullptr;
+        s_noMouse = f ? 1 : 0;
+        if (f)
         {
-            FILE* f = fopen("sdmc:/switch/nfs2se/mouse.txt", "r");
-            if (f)
-                fclose(f);
-            else
-                s_noMouse = 1;
-            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 mouse %s (mouse.txt %s)", f ? "on" : "off", f ? "found" : "missing");
+            fclose(f);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "nomouse.txt found: the mouse delivers no data");
         }
     }
     if (mouse && s_noMouse == 1)
