@@ -576,7 +576,7 @@ static void stopRumbleAtExit()
 
 void Gamepad::rumble(Uint16 low, Uint16 high, Uint32 durationMs)
 {
-    static unsigned s_logs = 40;
+    static unsigned s_logs = 400;
     if (s_gp1 && s_gp1->m_joystick)
     {
 #ifdef __SWITCH__
