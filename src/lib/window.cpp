@@ -21,27 +21,6 @@ Uint32 g_userEvent1  = 0;
 Uint32 g_userEvent2  = 0;
 Uint32 g_wmCharEvent = 0;
 bool g_isNFS3        = false;
-
-/* NFS2 only: the pad does not move a mouse unless sdmc:/switch/nfs2se/mouse.txt exists (it made the picture flicker). NFS3 is not affected. */
-static bool padMouseAllowed()
-{
-    if (g_isNFS3)
-        return true;
-#ifdef __SWITCH__
-    static int s_allowed = -1;
-    if (s_allowed < 0)
-    {
-        FILE* f = fopen("sdmc:/switch/nfs2se/mouse.txt", "r");
-        s_allowed = f ? 1 : 0;
-        if (f)
-            fclose(f);
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 pad mouse %s", s_allowed ? "on (mouse.txt)" : "off");
-    }
-    return s_allowed == 1;
-#else
-    return true;
-#endif
-}
 bool g_inRace        = false;
 bool g_capturingKey  = false;
 
@@ -237,7 +216,7 @@ static void pumpMouseStick()
     const Uint64 now = SDL_GetTicks();
     const Uint64 elapsed = s_last ? now - s_last : 0;
     s_last = now;
-    if (g_inRace || elapsed == 0 || elapsed > 200 || !padMouseAllowed())
+    if (g_inRace || elapsed == 0 || elapsed > 200)
     {
         s_restX = s_restY = 0.f;
         return;
@@ -557,7 +536,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                     /* a click would cancel the row that waits for a button: R3 is a joystick button then */
                                     break;
                                 }
-                                if (idx == 1 && !g_inRace && padMouseAllowed())
+                                if (idx == 1 && !g_inRace)
                                 {
                                     /* in the menus a click on the right stick is the left mouse button */
                                     Mouse::click(0);
@@ -639,8 +618,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                             case 9: /* ZR: accelerate in a race, left mouse button in the menus */
                                 if (!g_inRace)
                                 {
-                                    if (padMouseAllowed())
-                                        Mouse::setButton(0, event.jbutton.down);
+                                    Mouse::setButton(0, event.jbutton.down);
                                     break;
                                 }
                                 result->wParam = 0x26;
@@ -889,8 +867,6 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                          * A new touch always starts afresh.
                          */
                         static bool s_fingerActive = false;
-                        if (!padMouseAllowed())
-                            break;
                         if (event.type == SDL_EVENT_FINGER_DOWN)
                         {
                             s_fingerActive = true;

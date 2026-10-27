@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 
@@ -178,11 +179,18 @@ void update()
     }
 
     float strength = 0.f;
+    char dbgPlaying[64] = "";
     for (size_t i = 0; i < s.effects.size(); ++i)
     {
         Effect& e = s.effects[i];
         if (!e.playing)
             continue;
+        {
+            char one[12];
+            snprintf(one, sizeof(one), "%d ", e.id);
+            if (strlen(dbgPlaying) + strlen(one) < sizeof(dbgPlaying))
+                strcat(dbgPlaying, one);
+        }
         if (e.endTime && now >= e.endTime)
         {
             e.playing = false;
@@ -228,6 +236,17 @@ void update()
             strength = level;
     }
 
+    {
+        /* diagnosis: a time series of the force while something plays */
+        static Uint64 s_lastDbg = 0;
+        static int s_dbgBudget = 600;
+        if (s_dbgBudget > 0 && (strength > 0.f || s.lastStrength > 0.f) && now - s_lastDbg >= 100)
+        {
+            --s_dbgBudget;
+            s_lastDbg = now;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "ff: strength %.2f, playing: %s", strength, dbgPlaying);
+        }
+    }
     /* the rumble is refreshed regularly because it only runs for a short time */
     const bool changed = (strength - s.lastStrength > 0.03f) || (s.lastStrength - strength > 0.03f)
                          || (strength == 0.f) != (s.lastStrength == 0.f);
