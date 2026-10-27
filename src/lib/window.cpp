@@ -531,6 +531,11 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                     s_stickUsed[idx] = false;
                                     break;
                                 }
+                                if (g_capturingKey)
+                                {
+                                    /* a click would cancel the row that waits for a button: R3 is a joystick button then */
+                                    break;
+                                }
                                 if (idx == 1 && !g_inRace)
                                 {
                                     /* in the menus a click on the right stick is the left mouse button */
@@ -717,6 +722,11 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                 case SDL_EVENT_JOYSTICK_AXIS_MOTION:
                     if (event.jaxis.which == 0)
                     {
+#ifdef __SWITCH__
+                        /* while a row of the controls menu waits for an axis the sticks must not move the menu */
+                        if (g_capturingKey)
+                            event.jaxis.value = 0;
+#endif
                         if (event.jaxis.axis == 0)
                         {
 #ifdef __SWITCH__
