@@ -7234,6 +7234,28 @@ L_0x004904df:
 }
 
 /* align: skip 0x8d 0x80 0x00 0x00 0x00 0x00 0x8d 0x54 0x22 0x00 */
+
+#ifdef __SWITCH__
+/* writes the Switch default joystick layout into the table of player `player` (class `cls` as in sub_490530) */
+static void applySwitchPadDefaults(win32::WinApplication* app, x86::CPU& cpu, x86::reg32 cls, x86::reg32 player,
+                                   void (*getTable)(win32::WinApplication*, x86::CPU&))
+{
+    static const x86::reg32 s_defaults[13] = {
+        0x0080ff01, 0x007f0001, 0x0902, 0x0802, 0x0102, 0x0702, 0x0602,
+        0x0002, 0x0402, 0x0202, 0x0b02, 0x0302, 0x0502
+    };
+    const x86::reg32 eax = cpu.eax, ebx = cpu.ebx, ecx = cpu.ecx, edx = cpu.edx, esi = cpu.esi, edi = cpu.edi;
+    cpu.eax = cls;
+    cpu.edx = player;
+    cpu.esp -= 4;
+    getTable(app, cpu);
+    const x86::reg32 table = cpu.eax;
+    for (int i = 0; i < 13; ++i)
+        app->getMemory<x86::reg32>(table + x86::reg32(4 * i)) = s_defaults[i] + (player << 28);
+    cpu.eax = eax; cpu.ebx = ebx; cpu.ecx = ecx; cpu.edx = edx; cpu.esi = esi; cpu.edi = edi;
+}
+#endif
+
 void Application::sub_4904f0(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
@@ -7330,6 +7352,10 @@ L_0x0049050f:
     cpu.esp -= 4;
     sub_490640(app, cpu);
     if (cpu.terminate) return;
+#ifdef __SWITCH__
+    if (cpu.eax)
+        applySwitchPadDefaults(app, cpu, cpu.ecx, cpu.ebx, sub_4904d0);
+#endif
     // 00490534  85c0                   +test eax, eax
     cpu.clear_co();
     cpu.set_szp(static_cast<x86::reg32>(cpu.eax & cpu.eax));
@@ -7418,6 +7444,9 @@ L_0x0049055e:
     cpu.esp -= 4;
     sub_490e30(app, cpu);
     if (cpu.terminate) return;
+#ifdef __SWITCH__
+    applySwitchPadDefaults(app, cpu, cpu.ecx, cpu.ebx, sub_4904d0);
+#endif
     // 00490567  eb20                   -jmp 0x490589
     goto L_0x00490589;
 L_0x00490569:
@@ -7429,6 +7458,9 @@ L_0x00490569:
     cpu.esp -= 4;
     sub_490fa0(app, cpu);
     if (cpu.terminate) return;
+#ifdef __SWITCH__
+    applySwitchPadDefaults(app, cpu, cpu.ecx, cpu.ebx, sub_4904d0);
+#endif
     // 00490572  eb15                   -jmp 0x490589
     goto L_0x00490589;
 L_0x00490574:
