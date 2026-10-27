@@ -2,6 +2,10 @@
 #include <SDL3/SDL.h>
 #include <cstring>
 #include <vector>
+#include <cstdlib>
+#ifdef __SWITCH__
+#include <switch.h>
+#endif
 
 
 namespace win32
@@ -498,12 +502,89 @@ bool Gamepad::hasRumble()
     return SDL_GetBooleanProperty(SDL_GetJoystickProperties(s_gp1->m_joystick), SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false);
 }
 
+#ifdef __SWITCH__
+/*
+ * SDL's Switch driver treats the two rumble values as frequencies and always sends a fixed,
+ * invalid amplitude, so SDL_RumbleJoystick does nothing on the console (it returns "ok" all the same).
+ * The vibration is therefore sent to libnx directly: low/high are the amplitudes of the two bands.
+ */
+static void stopRumbleAtExit();
+
+static bool nxRumble(Uint16 low, Uint16 high)
+{
+    static HidVibrationDeviceHandle s_handles[2];
+    static int s_count = 0;
+    static u32 s_style = 0;
+    static HidNpadIdType s_id = HidNpadIdType_No1;
+    static bool s_registered = false;
+
+    HidNpadIdType id = HidNpadIdType_No1;
+    u32 style = hidGetNpadStyleSet(id);
+    if (!style)
+    {
+        id = HidNpadIdType_Handheld;
+        style = hidGetNpadStyleSet(id);
+    }
+    if (!style)
+        return false;
+    if (style != s_style || id != s_id || s_count == 0)
+    {
+        s_style = style;
+        s_id = id;
+        Result rc;
+        if (style & HidNpadStyleTag_NpadFullKey)
+        {
+            s_count = 1;
+            rc = hidInitializeVibrationDevices(s_handles, 1, id, HidNpadStyleTag_NpadFullKey);
+        }
+        else if (style & HidNpadStyleTag_NpadHandheld)
+        {
+            s_count = 2;
+            rc = hidInitializeVibrationDevices(s_handles, 2, id, HidNpadStyleTag_NpadHandheld);
+        }
+        else
+        {
+            s_count = 2;
+            rc = hidInitializeVibrationDevices(s_handles, 2, id, HidNpadStyleTag_NpadJoyDual);
+        }
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "rumble: libnx vibration devices for npad style 0x%x: %s", (unsigned) style, R_SUCCEEDED(rc) ? "ok" : "failed");
+        if (R_FAILED(rc))
+        {
+            s_count = 0;
+            return false;
+        }
+    }
+    if (!s_registered)
+    {
+        s_registered = true;
+        atexit(stopRumbleAtExit);
+    }
+    HidVibrationValue value;
+    value.amp_low = low / 65535.0f;
+    value.freq_low = 160.0f;
+    value.amp_high = high / 65535.0f;
+    value.freq_high = 320.0f;
+    HidVibrationValue values[2] = { value, value };
+    return R_SUCCEEDED(hidSendVibrationValues(s_handles, values, s_count));
+}
+
+static void stopRumbleAtExit()
+{
+    nxRumble(0, 0);
+}
+#endif
+
 void Gamepad::rumble(Uint16 low, Uint16 high, Uint32 durationMs)
 {
     static unsigned s_logs = 40;
     if (s_gp1 && s_gp1->m_joystick)
     {
+#ifdef __SWITCH__
+        const bool ok = nxRumble(low, high);
+        (void) durationMs;
+#else
         const bool ok = SDL_RumbleJoystick(s_gp1->m_joystick, low, high, durationMs);
+#endif
         if (s_logs)
         {
             --s_logs;

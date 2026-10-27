@@ -616,8 +616,7 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 scancode = SDL_SCANCODE_DOWN;
                                 break;
                             case 9: /* ZR: accelerate in a race, left mouse button in the menus */
-                                /* NFS2 has no race detection: ZR stays the accelerator there */
-                                if (g_isNFS3 && !g_inRace)
+                                if (!g_inRace)
                                 {
                                     Mouse::setButton(0, event.jbutton.down);
                                     break;
@@ -723,9 +722,26 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     if (event.jaxis.which == 0)
                     {
 #ifdef __SWITCH__
-                        /* while a row of the controls menu waits for an axis the sticks must not move the menu */
+                        /*
+                         * While a row of the controls menu waits for an axis the sticks must not move the menu,
+                         * and neither may the deflection that was used for the assignment once the row is done:
+                         * an axis stays quiet until it was back near the centre.
+                         */
+                        static bool s_waitNeutral[16];
+                        const int ax = event.jaxis.axis < 16 ? event.jaxis.axis : 15;
                         if (g_capturingKey)
+                        {
+                            for (int i = 0; i < 16; ++i)
+                                s_waitNeutral[i] = true;
                             event.jaxis.value = 0;
+                        }
+                        else if (s_waitNeutral[ax])
+                        {
+                            if (event.jaxis.value > -12000 && event.jaxis.value < 12000)
+                                s_waitNeutral[ax] = false;
+                            else
+                                event.jaxis.value = 0;
+                        }
 #endif
                         if (event.jaxis.axis == 0)
                         {

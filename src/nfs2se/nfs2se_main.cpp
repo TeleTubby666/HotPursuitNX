@@ -54,6 +54,12 @@ int main(int argc, char* argv[])
         nfs2se::Application app(argv[0]);
         app.execute();
     }
+#ifdef __SWITCH__
+    /* like NFS3: a thread left over at exit (the log watchdog) crashes the loader, and so does the SDL teardown */
+    win32::stopWatchdog();
+    win32::logPrintf("game finished");
+    return 0;
+#endif
     SDL_Quit();
     return 0;
 }

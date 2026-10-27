@@ -319,6 +319,11 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
            (the menus are not reloaded then, see the log of a second race) */
         if (lower.find("/menus/setup.mnu") != std::string::npos || lower.find("/menus/postgame.mnu") != std::string::npos)
             g_inRace = false;
+        /* NFS2: a race builds its track in tmptrk/main.trk, the front end loads its text file again */
+        else if (lower.find("/tmptrk/main.trk") != std::string::npos)
+            g_inRace = true;
+        else if (lower.find("/fedata/pc/text/text.") != std::string::npos)
+            g_inRace = false;
         else if (lower.find("/tracks/") != std::string::npos && lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".frd") == 0)
             g_inRace = true;
 #endif
