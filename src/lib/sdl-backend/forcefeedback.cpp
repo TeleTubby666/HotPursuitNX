@@ -1,6 +1,7 @@
 #include <lib/gamepad.h>
 #include <SDL3/SDL.h>
 #include <cmath>
+#include <cstdio>
 #include <vector>
 
 
@@ -236,8 +237,30 @@ void update()
         s.lastStrength = strength;
         s.lastRumble = now;
         SDL_UnlockMutex(s.mutex);
-        const Uint16 low = (Uint16) (strength * 65535.f);
-        const Uint16 high = (Uint16) (strength * 52000.f);
+        /*
+         * The games ask for gentle forces (a few percent of the maximum) that a pad's motors
+         * hardly show. The curve lifts weak forces; sdmc:/switch/nfs3hp/ffgain.txt can scale
+         * the result (default 1.0, e.g. 1.5 for stronger, 0.5 for weaker).
+         */
+        static float s_userGain = -1.f;
+        if (s_userGain < 0.f)
+        {
+            s_userGain = 1.f;
+            FILE* f = fopen("sdmc:/switch/nfs3hp/ffgain.txt", "r");
+            if (f)
+            {
+                float v = 0.f;
+                if (fscanf(f, "%f", &v) == 1 && v >= 0.f && v <= 4.f)
+                    s_userGain = v;
+                fclose(f);
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: gain factor %.2f from ffgain.txt", s_userGain);
+            }
+        }
+        float shaped = strength > 0.f ? std::pow(strength, 0.45f) * s_userGain : 0.f;
+        if (shaped > 1.f)
+            shaped = 1.f;
+        const Uint16 low = (Uint16) (shaped * 65535.f);
+        const Uint16 high = (Uint16) (shaped * 52000.f);
         Gamepad::rumble(low, high, strength > 0.f ? 250 : 0);
         return;
     }

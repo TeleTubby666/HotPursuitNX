@@ -219,6 +219,22 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
     Gamepad* gamepad = dynamic_cast<Gamepad*>(m_resource);
     Mouse* mouse = dynamic_cast<Mouse*>(m_resource);
     memset(lpvData, 0, cbData);
+#ifdef __SWITCH__
+    /* diagnosis for NFS2: with sdmc:/switch/nfs2se/nomouse.txt the game gets no mouse data at all */
+    static int s_noMouse = -1;
+    if (mouse && s_noMouse < 0)
+    {
+        FILE* f = !g_isNFS3 ? fopen("sdmc:/switch/nfs2se/nomouse.txt", "r") : nullptr;
+        s_noMouse = f ? 1 : 0;
+        if (f)
+        {
+            fclose(f);
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "nomouse.txt found: the mouse delivers no data");
+        }
+    }
+    if (mouse && s_noMouse == 1)
+        mouse = nullptr;
+#endif
     if (mouse)
     {
         /* DIMOUSESTATE: lX, lY, lZ (relative movement), then the buttons; DIMOUSESTATE2 has 8 buttons */
