@@ -9416,6 +9416,22 @@ L_0x00490e0a:
     // 00490e25  894330                 -mov dword ptr [ebx + 0x30], eax
     app->getMemory<x86::reg32>(cpu.ebx + x86::reg32(48) /* 0x30 */) = cpu.eax;
 L_0x00490e28:
+#ifdef __SWITCH__
+    /*
+     * Default layout of a joystick on the Switch (applies to new configurations and to the
+     * "default" entry of the controls menu): left stick steers, ZR gas, ZL brake, B handbrake,
+     * R look back, L free, A nitro, L3 reset, X camera, Minus shift down, Y horn/siren, R3 camera.
+     * ebx = table of the player, ecx = player number.
+     */
+    {
+        static const x86::reg32 s_switchPadDefaults[13] = {
+            0x0080ff01, 0x007f0001, 0x0902, 0x0802, 0x0102, 0x0702, 0x0602,
+            0x0002, 0x0402, 0x0202, 0x0b02, 0x0302, 0x0502
+        };
+        for (int i = 0; i < 13; ++i)
+            app->getMemory<x86::reg32>(cpu.ebx + x86::reg32(4 * i)) = s_switchPadDefaults[i] + (cpu.ecx << 28);
+    }
+#endif
     // 00490e28  5d                     -pop ebp
     cpu.ebp = app->getMemory<x86::reg32>(cpu.esp);
     cpu.esp += 4;

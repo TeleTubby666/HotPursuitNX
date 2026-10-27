@@ -80,9 +80,6 @@ HRESULT IDirectInput2::EnumDevices(WinApplication* app, x86::CPU& cpu,
         /* SDL lists every Joy-Con / virtual pad separately; the game gets one joystick */
         if (deviceCount > 1)
             deviceCount = 1;
-        /* NFS2 stays on keyboard + mouse: with a joystick it reacted to keys and buttons at once */
-        if (!g_isNFS3)
-            deviceCount = 0;
 #endif
         for (x86::reg16 deviceIndex = 0; deviceIndex < deviceCount; ++deviceIndex)
         {

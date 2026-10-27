@@ -258,6 +258,14 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         NFS2_ASSERT(cbData == sizeof(DIJOYSTATE));
         DIJOYSTATE* state = reinterpret_cast<DIJOYSTATE*>(lpvData);
         GamepadState gpState = gamepad->getState();
+#ifdef __SWITCH__
+        /*
+         * NFS2 menus work with keys (and react to the joystick as well, which doubled every
+         * input), so the game only sees the joystick during a race.
+         */
+        if (!g_isNFS3 && !g_inRace)
+            memset(&gpState, 0, sizeof(gpState));
+#endif
         static bool s_logged = false;
         if (!s_logged)
         {
@@ -266,6 +274,10 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         }
         /* the game reads the joystick state without Poll(); count that as polling so that the
            sticks are not also converted to keys (otherwise steering would be doubled) */
+#ifdef __SWITCH__
+        /* NFS2 menus: the sticks keep working as keys */
+        if (g_isNFS3 || g_inRace)
+#endif
         Input::poll();
         state->lX = 0x7fff + gpState.axes[0];
         state->lY = 0x7fff + gpState.axes[1];
@@ -580,6 +592,9 @@ HRESULT IDirectInputDevice::Poll(WinApplication* app, x86::CPU& cpu)
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput: game polls the joystick (stick keys are off from now on)");
     }
     app->unlockContext(cpu);
+#ifdef __SWITCH__
+    if (g_isNFS3 || g_inRace)
+#endif
     Gamepad::poll();
     app->lockContext(cpu);
     return 0;
