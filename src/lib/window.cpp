@@ -611,7 +611,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                                 scancode = SDL_SCANCODE_DOWN;
                                 break;
                             case 9: /* ZR: accelerate in a race, left mouse button in the menus */
-                                if (!g_inRace)
+                                /* NFS2 has no race detection: ZR stays the accelerator there */
+                                if (g_isNFS3 && !g_inRace)
                                 {
                                     Mouse::setButton(0, event.jbutton.down);
                                     break;
