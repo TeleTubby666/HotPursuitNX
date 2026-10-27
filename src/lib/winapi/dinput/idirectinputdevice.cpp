@@ -3,6 +3,7 @@
 #include <winapi/wrapper.h>
 #include <lib/gamepad.h>
 #include <lib/window.h>
+#include <map>
 
 
 namespace win32 { namespace dinput
@@ -184,13 +185,56 @@ HRESULT IDirectInputDevice::GetProperty(WinApplication* app, x86::CPU& cpu,
     return 1;
 }
 
+/* axis ranges the game asked for with DIPROP_RANGE (per device and axis, NFS2 only uses them) */
+namespace
+{
+    struct AxisRange { LONG lo, hi; bool set; };
+    struct AxisRanges { AxisRange axis[6]; AxisRanges() { for (int i = 0; i < 6; ++i) { axis[i].lo = 0; axis[i].hi = 0; axis[i].set = false; } } };
+    std::map<const void*, AxisRanges> s_axisRanges;
+}
+
 HRESULT IDirectInputDevice::SetProperty(WinApplication* app, x86::CPU& cpu,
                                         Packed<const GUID> rguidProp, LPCDIPROPHEADER pdiph)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(rguidProp);
-    NFS2_USE(pdiph);
+    static int s_logs = 40;
+    const x86::reg32 prop = rguidProp;
+    if (pdiph && dynamic_cast<Gamepad*>(m_resource))
+    {
+        const DIPROPHEADER* header = pdiph;
+        if (prop == 4 && header->dwSize >= sizeof(DIPROPRANGE))
+        {
+            const DIPROPRANGE* range = reinterpret_cast<const DIPROPRANGE*>(pdiph);
+            if (s_logs > 0)
+            {
+                --s_logs;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput joystick: DIPROP_RANGE obj=0x%x how=%u min=%d max=%d",
+                            (unsigned) header->dwObj, (unsigned) header->dwHow, (int) range->lMin, (int) range->lMax);
+            }
+            AxisRanges& ranges = s_axisRanges[m_resource];
+            for (int axis = 0; axis < 6; ++axis)
+            {
+                bool match = header->dwHow == 0;                                          /* DIPH_DEVICE */
+                if (header->dwHow == 1)                                                   /* DIPH_BYOFFSET */
+                    match = (header->dwObj / 4) == (DWORD) axis;
+                else if (header->dwHow == 2)                                              /* DIPH_BYID */
+                    match = ((header->dwObj >> 8) & 0xff) == (DWORD) axis;
+                if (match)
+                {
+                    ranges.axis[axis].lo = range->lMin;
+                    ranges.axis[axis].hi = range->lMax;
+                    ranges.axis[axis].set = true;
+                }
+            }
+        }
+        else if (s_logs > 0)
+        {
+            --s_logs;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInput joystick: SetProperty prop=0x%x size=%u how=%u obj=0x%x",
+                        (unsigned) prop, (unsigned) header->dwSize, (unsigned) header->dwHow, (unsigned) header->dwObj);
+        }
+    }
     return 0;
 }
 
@@ -289,6 +333,33 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
         state->lRx = 0x7fff + gpState.axes[2];
         state->lRy = 0x7fff + gpState.axes[3];
         state->lRz = 0x7fff + gpState.axes[5];
+#ifdef __SWITCH__
+        if (!g_isNFS3)
+        {
+            /* NFS2 asks for its own axis range (DIPROP_RANGE) and expects values in it */
+            std::map<const void*, AxisRanges>::const_iterator it = s_axisRanges.find(m_resource);
+            if (it != s_axisRanges.end())
+            {
+                LONG* axes[6] = { &state->lX, &state->lY, &state->lZ, &state->lRx, &state->lRy, &state->lRz };
+                for (int axis = 0; axis < 6; ++axis)
+                {
+                    const AxisRange& r = it->second.axis[axis];
+                    if (r.set)
+                        *axes[axis] = r.lo + (LONG) ((double) (*axes[axis]) * (double) (r.hi - r.lo) / 65534.0);
+                }
+            }
+            static int s_stateLogs = 30;
+            static Uint64 s_lastLog = 0;
+            const Uint64 now = SDL_GetTicks();
+            if (g_inRace && s_stateLogs > 0 && now - s_lastLog > 1000)
+            {
+                --s_stateLogs;
+                s_lastLog = now;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 joystick state: x=%d y=%d buttons=0x%llx", (int) state->lX, (int) state->lY,
+                            (unsigned long long) gpState.buttons);
+            }
+        }
+#endif
         state->rgdwPOV[0] = -1;
         state->rgdwPOV[1] = -1;
         state->rgdwPOV[2] = -1;
