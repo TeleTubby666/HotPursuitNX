@@ -83,7 +83,7 @@ bool IDirectInputEffect::typeFromGuid(const GUID& guid, ForceFeedback::Type& typ
     return false;
 }
 
-static unsigned s_logBudget = 60;
+static unsigned s_logBudget = 120;
 
 static void logEffect(const char* what, int id)
 {
@@ -133,6 +133,16 @@ void IDirectInputEffect::applyParameters(WinApplication* app, int effectId, cons
             params.magnitude = 10000;
     }
     ForceFeedback::setParams(effectId, params);
+
+    static unsigned s_paramLogs = 80;
+    if (s_paramLogs)
+    {
+        --s_paramLogs;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "force feedback: effect %d parameters flags=0x%x type=%d magnitude=%d start=%d end=%d period=%ums gain=%u duration=%ums (size %u, type specific %u bytes)",
+                    effectId, (unsigned) flags, (int) params.type, params.magnitude, params.start, params.end, params.period,
+                    params.gain, params.durationMs, (unsigned) effect->dwSize, (unsigned) effect->cbTypeSpecificParams);
+    }
 }
 
 DEFINE_GUID(IID_IDirectInputEffect, 0xE7E1F7C0, 0x88D2, 0x11D0, 0x9A, 0xD0, 0x00, 0xA0, 0xC9, 0xA0, 0x6E, 0x35);

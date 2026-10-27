@@ -500,8 +500,23 @@ bool Gamepad::hasRumble()
 
 void Gamepad::rumble(Uint16 low, Uint16 high, Uint32 durationMs)
 {
+    static unsigned s_logs = 40;
     if (s_gp1 && s_gp1->m_joystick)
-        SDL_RumbleJoystick(s_gp1->m_joystick, low, high, durationMs);
+    {
+        const bool ok = SDL_RumbleJoystick(s_gp1->m_joystick, low, high, durationMs);
+        if (s_logs)
+        {
+            --s_logs;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "rumble %u/%u for %u ms on \"%s\": %s%s%s",
+                        (unsigned) low, (unsigned) high, (unsigned) durationMs, SDL_GetJoystickName(s_gp1->m_joystick),
+                        ok ? "ok" : "failed (", ok ? "" : SDL_GetError(), ok ? "" : ")");
+        }
+    }
+    else if (s_logs)
+    {
+        --s_logs;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "rumble %u/%u requested but there is no pad", (unsigned) low, (unsigned) high);
+    }
 }
 
 x86::reg32 Gamepad::getCount()
