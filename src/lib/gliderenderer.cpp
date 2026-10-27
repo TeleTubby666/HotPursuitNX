@@ -340,6 +340,16 @@ void GlideRenderer::flush()
     m_drawCalls.push_back(dcall);
 }
 
+namespace
+{
+    /* diagnosis for a real widescreen mode: how many triangles are drawn under which clip window */
+    struct ClipStat { int clip[4]; int triangles; };
+    ClipStat s_clipStats[8];
+    int s_clipStatCount = 0;
+    int s_clipFrames = 0;
+    int s_clipLogs = 25;
+}
+
 void GlideRenderer::swap()
 {
     m_renderer->setCurrent();
@@ -557,15 +567,6 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
     m_renderer->clearCurrent();
 }
 
-namespace
-{
-    /* diagnosis for a real widescreen mode: how many triangles are drawn under which clip window */
-    struct ClipStat { int clip[4]; int triangles; };
-    ClipStat s_clipStats[8];
-    int s_clipStatCount = 0;
-    int s_clipFrames = 0;
-    int s_clipLogs = 25;
-}
 
 void GlideRenderer::setClip(int minX, int minY, int maxX, int maxY)
 {
