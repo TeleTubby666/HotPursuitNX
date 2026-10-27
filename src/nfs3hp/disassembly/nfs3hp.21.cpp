@@ -9419,8 +9419,9 @@ L_0x00490e28:
 #ifdef __SWITCH__
     /*
      * Default layout of a joystick on the Switch (applies to new configurations and to the
-     * "default" entry of the controls menu): left stick steers, ZR gas, ZL brake, B handbrake,
-     * R look back, L free, A nitro, L3 reset, X camera, Minus shift down, Y horn/siren, R3 camera.
+     * "default" entry of the controls menu), in the order of the menu: steer right/left on
+     * axis X, J gas (ZR), I brake (ZL), B handbrake (B), H shift up (R), G shift down (L),
+     * A camera (A), E horn (L3), C look back (X), L reset (Minus), D spike strips (Y), F lights (R3).
      * ebx = table of the player, ecx = player number.
      */
     {
