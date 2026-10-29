@@ -355,6 +355,7 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
                 if (gpState.buttons & (1ll << 14)) state->lX = 0xffff;
                 if (gpState.buttons & (1ll << 13)) state->lY = 0;
                 if (gpState.buttons & (1ll << 15)) state->lY = 0xffff;
+                gpState.buttons &= ~(0xfll << 12);      /* ... and are no joystick buttons */
             }
             static int s_stateLogs = 40;
             static Uint64 s_lastLog = 0;

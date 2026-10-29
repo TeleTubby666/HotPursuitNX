@@ -221,6 +221,16 @@ void update()
             {
                 /* sampling the sine at frame times only gives random flicker; the mean level is what a motor shows */
                 level *= 0.6f;
+                /*
+                 * NFS3 expresses the engine speed as the period of the effect (100 ms idling down to ~33 ms
+                 * at high revs). A game pad cannot change the frequency, so the rumble gets stronger
+                 * with the revs instead.
+                 */
+                {
+                    float rpm = (100.f - (float) e.params.period) / 67.f;
+                    rpm = rpm < 0.f ? 0.f : (rpm > 1.f ? 1.f : rpm);
+                    level *= 0.6f + 1.0f * rpm;
+                }
             }
             break;
         default:
@@ -275,7 +285,7 @@ void update()
                 SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "force feedback: gain factor %.2f from ffgain.txt", s_userGain);
             }
         }
-        float shaped = strength > 0.f ? std::pow(strength, 0.8f) * s_userGain : 0.f;
+        float shaped = strength > 0.f ? std::pow(strength, 0.5f) * s_userGain : 0.f;
         if (shaped > 1.f)
             shaped = 1.f;
         /* the sum of both motor amplitudes stays within 1.0 (the Switch limit) */

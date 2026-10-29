@@ -543,7 +543,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                 case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
                 case SDL_EVENT_JOYSTICK_BUTTON_UP:
                     {
-                        if (padJoyOnly())
+                        /* joystick-only mode: only Plus still acts as Escape (pause menu) */
+                        if (padJoyOnly() && event.jbutton.button != 10)
                             break;
                         if (event.jbutton.which == 0)
                         {
