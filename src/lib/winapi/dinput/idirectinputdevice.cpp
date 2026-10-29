@@ -311,7 +311,7 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
          * NFS2 menus work with keys (and react to the joystick as well, which doubled every
          * input), so the game only sees the joystick during a race.
          */
-        if (!g_isNFS3 && !g_inRace)
+        if (!g_isNFS3 && !g_inRace && !padJoyOnly())
             memset(&gpState, 0, sizeof(gpState));
 #endif
         static bool s_logged = false;
@@ -324,7 +324,7 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
            sticks are not also converted to keys (otherwise steering would be doubled) */
 #ifdef __SWITCH__
         /* NFS2 menus: the sticks keep working as keys */
-        if (g_isNFS3 || g_inRace)
+        if (g_isNFS3 || g_inRace || padJoyOnly())
 #endif
         Input::poll();
         state->lX = 0x7fff + gpState.axes[0];
@@ -348,15 +348,25 @@ HRESULT IDirectInputDevice::GetDeviceState(WinApplication* app, x86::CPU& cpu,
                         *axes[axis] = r.lo + (LONG) ((double) (*axes[axis]) * (double) (r.hi - r.lo) / 65534.0);
                 }
             }
-            static int s_stateLogs = 30;
+            if (padJoyOnly())
+            {
+                /* the D-pad (buttons 12..15: left, up, right, down) acts like the left stick */
+                if (gpState.buttons & (1ll << 12)) state->lX = 0;
+                if (gpState.buttons & (1ll << 14)) state->lX = 0xffff;
+                if (gpState.buttons & (1ll << 13)) state->lY = 0;
+                if (gpState.buttons & (1ll << 15)) state->lY = 0xffff;
+            }
+            static int s_stateLogs = 40;
             static Uint64 s_lastLog = 0;
+            static unsigned s_reads = 0;
+            ++s_reads;
             const Uint64 now = SDL_GetTicks();
-            if (g_inRace && s_stateLogs > 0 && now - s_lastLog > 1000)
+            if (s_stateLogs > 0 && now - s_lastLog > 3000)
             {
                 --s_stateLogs;
                 s_lastLog = now;
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 joystick state: x=%d y=%d buttons=0x%llx", (int) state->lX, (int) state->lY,
-                            (unsigned long long) gpState.buttons);
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 joystick: %u reads so far (%s), x=%d y=%d buttons=0x%llx",
+                            s_reads, g_inRace ? "race" : "menu", (int) state->lX, (int) state->lY, (unsigned long long) gpState.buttons);
             }
         }
 #endif
@@ -668,7 +678,7 @@ HRESULT IDirectInputDevice::Poll(WinApplication* app, x86::CPU& cpu)
     }
     app->unlockContext(cpu);
 #ifdef __SWITCH__
-    if (g_isNFS3 || g_inRace)
+    if (g_isNFS3 || g_inRace || padJoyOnly())
 #endif
     Gamepad::poll();
     app->lockContext(cpu);

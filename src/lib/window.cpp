@@ -22,6 +22,30 @@ Uint32 g_userEvent2  = 0;
 Uint32 g_wmCharEvent = 0;
 bool g_isNFS3        = false;
 
+bool padJoyOnly()
+{
+#ifdef __SWITCH__
+    static int s_joyOnly = -1;
+    if (s_joyOnly < 0)
+    {
+        s_joyOnly = 0;
+        if (!g_isNFS3)
+        {
+            FILE* f = fopen("sdmc:/switch/nfs2se/joyonly.txt", "r");
+            if (f)
+            {
+                fclose(f);
+                s_joyOnly = 1;
+            }
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "NFS2 joystick-only mode %s", s_joyOnly ? "on (joyonly.txt)" : "off");
+        }
+    }
+    return s_joyOnly == 1;
+#else
+    return false;
+#endif
+}
+
 /* NFS2 only: the pad does not move a mouse unless sdmc:/switch/nfs2se/mouse.txt exists (it made the picture flicker). NFS3 is not affected. */
 static bool padMouseAllowed()
 {
@@ -519,6 +543,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                 case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
                 case SDL_EVENT_JOYSTICK_BUTTON_UP:
                     {
+                        if (padJoyOnly())
+                            break;
                         if (event.jbutton.which == 0)
                         {
 #ifdef __SWITCH__
@@ -741,6 +767,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     }
                     break;
                 case SDL_EVENT_JOYSTICK_AXIS_MOTION:
+                    if (padJoyOnly())
+                        break;
                     if (event.jaxis.which == 0)
                     {
 #ifdef __SWITCH__
@@ -910,6 +938,8 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     break;
 #endif
                 case SDL_EVENT_JOYSTICK_HAT_MOTION:
+                    if (padJoyOnly())
+                        break;
                     if (event.jhat.which == 0 && event.jhat.hat == 0)
                     {
                         static x86::reg32 s_prevHatButtons = 0;
