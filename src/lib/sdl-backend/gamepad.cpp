@@ -585,6 +585,18 @@ void Gamepad::rumble(Uint16 low, Uint16 high, Uint32 durationMs)
 #else
         const bool ok = SDL_RumbleJoystick(s_gp1->m_joystick, low, high, durationMs);
 #endif
+        {
+            /* a time series of what is really sent (at most every 400 ms) */
+            static Uint64 s_lastSeries = 0;
+            static unsigned s_seriesBudget = 1500;
+            const Uint64 nowTicks = SDL_GetTicks();
+            if (s_seriesBudget && nowTicks - s_lastSeries >= 400)
+            {
+                --s_seriesBudget;
+                s_lastSeries = nowTicks;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "rumble sent: low %u high %u (%s)", (unsigned) low, (unsigned) high, ok ? "ok" : "failed");
+            }
+        }
         if (s_logs)
         {
             --s_logs;

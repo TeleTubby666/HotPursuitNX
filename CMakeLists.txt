@@ -1,6 +1,23 @@
 cmake_minimum_required(VERSION 3.16)
 project(nfs_recompiled LANGUAGES C CXX ASM)
 
+# build identification for the log (only the file that logs it is rebuilt when it changes)
+execute_process(COMMAND git -c safe.directory=* rev-parse --short HEAD
+                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                OUTPUT_VARIABLE NFS_GIT_HASH OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+if(NOT NFS_GIT_HASH)
+    set(NFS_GIT_HASH "unknown")
+endif()
+set(NFS_BUILDINFO_CONTENT "#define NFS_BUILD_HASH \"${NFS_GIT_HASH}\"\n")
+set(NFS_BUILDINFO_FILE "${CMAKE_BINARY_DIR}/gen/buildinfo.h")
+set(NFS_BUILDINFO_OLD "")
+if(EXISTS "${NFS_BUILDINFO_FILE}")
+    file(READ "${NFS_BUILDINFO_FILE}" NFS_BUILDINFO_OLD)
+endif()
+if(NOT "${NFS_BUILDINFO_OLD}" STREQUAL "${NFS_BUILDINFO_CONTENT}")
+    file(WRITE "${NFS_BUILDINFO_FILE}" "${NFS_BUILDINFO_CONTENT}")
+endif()
+
 # options
 option(WITH_PEDANTIC_FPU "Compile pedantic FPU implementation" OFF)
 option(WITH_MMX "Enable MMX support" ON)
@@ -172,7 +189,8 @@ endif()
 
 add_library(nfs_core STATIC ${LIB_CPP_SOURCES})
 target_include_directories(nfs_core PRIVATE
-    ${CMAKE_SOURCE_DIR}/include)
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_BINARY_DIR}/gen)
 target_link_libraries(nfs_core PRIVATE ${SDL3_MAIN_TARGET} ${SDL3_LIB_TARGET} ${OPENGL_TARGET})
 
 # helper function for adding the game executables

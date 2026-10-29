@@ -1,4 +1,9 @@
 #include <lib/log.h>
+#if defined(__has_include)
+# if __has_include("buildinfo.h")
+#  include "buildinfo.h"
+# endif
+#endif
 #include <SDL3/SDL.h>
 #include <cstdarg>
 #include <cstdio>
@@ -100,6 +105,9 @@ void initLog(const char* path)
     SDL_SetLogPriorities(NFS_LOG_LEVEL);
     SDL_SetLogOutputFunction(logOutput, nullptr);
     writeLine("", "log started");
+#ifdef NFS_BUILD_HASH
+    writeLine("", "build " NFS_BUILD_HASH);
+#endif
     startWatchdog();
 }
 
