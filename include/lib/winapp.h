@@ -179,9 +179,12 @@ public:
             return;
         }
         const win32::Method& m = it->second;
-        //SDL_LogDebug("[%lu] Calling method: %s", SDL_ThreadID(), m.name.c_str());
+        traceCall(m, cpu);
         m(this, cpu);
     }
+
+    /* diagnosis: the first calls of every API function and callback, with the thread and the first arguments */
+    void traceCall(const win32::Method& m, x86::CPU& cpu);
 
 protected:
     WinApplication(const char* appName, x86::reg32 baseAddress, const std::vector<Section>& sections);

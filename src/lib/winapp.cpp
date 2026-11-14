@@ -1,3 +1,7 @@
+#include <string>
+#include <unordered_map>
+#include <mutex>
+#include <atomic>
 #include <lib/winapp.h>
 #include <lib/mutex.h>
 #include <lib/event.h>
@@ -245,4 +249,29 @@ void WinApplication::terminate()
     m_cpu.terminate = true;
 }
 
+
+void WinApplication::traceCall(const win32::Method& m, x86::CPU& cpu)
+{
+    static std::atomic<int> s_budget(4000);
+    if (s_budget.load(std::memory_order_relaxed) <= 0)
+        return;
+    if (SDL_GetTicks() > 90000)    /* only the start-up; afterwards the trace costs nothing */
+    {
+        s_budget = 0;
+        return;
+    }
+    static std::mutex s_lock;
+    static std::unordered_map<std::string, int> s_counts;
+    {
+        std::lock_guard<std::mutex> guard(s_lock);
+        int& n = s_counts[m.name];
+        if (n >= 4)
+            return;
+        ++n;
+    }
+    --s_budget;
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "api: %s (0x%08x 0x%08x 0x%08x 0x%08x) eax=0x%x",
+                m.name.c_str(), (unsigned) getMemory<x86::reg32>(cpu.esp + 4), (unsigned) getMemory<x86::reg32>(cpu.esp + 8),
+                (unsigned) getMemory<x86::reg32>(cpu.esp + 12), (unsigned) getMemory<x86::reg32>(cpu.esp + 16), (unsigned) cpu.eax);
+}
 }
