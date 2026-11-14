@@ -5,6 +5,9 @@
 #include <lib/gliderenderer.h>
 #include <lib/window.h>
 #include <cmath>
+#include <cstring>
+#include <unordered_map>
+#include <vector>
 
 
 namespace win32 { namespace glide2x
@@ -12,6 +15,36 @@ namespace win32 { namespace glide2x
 
 static Renderer* s_renderer;
 static GlideRenderer* s_glideRenderer;
+
+/*
+ * State for the Glide features that NFS II SE (3Dfx) uses and NFS3's driver does not: clip windows, chroma key,
+ * W-buffer, table fog and paletted textures. NFS3 keeps its tested behaviour (g_isNFS3).
+ */
+static bool accurate() { return !g_isNFS3; }
+static bool s_chromakeyEnabled = false;
+static x86::reg32 s_chromakeyColor = 0;
+static bool s_fogEnabled = false;
+static x86::reg8 s_fogTable[64] = {};
+static x86::reg32 s_fogColor = 0;
+static x86::reg32 s_palette[256] = {};
+static x86::reg32 s_paletteGeneration = 1;
+struct PalettedTexture
+{
+    std::vector<x86::reg8> indices;
+    x86::reg32 largeLod, smallLod;
+    x86::reg32 paletteGeneration;
+};
+static std::unordered_map<x86::reg32, PalettedTexture> s_palettedTextures;
+
+static void uploadPaletted(x86::reg32 address, PalettedTexture& t)
+{
+    const x86::reg32 size = 256 >> t.largeLod;
+    std::vector<x86::reg32> argb(size * size);
+    for (x86::reg32 i = 0; i < size * size && i < t.indices.size(); ++i)
+        argb[i] = 0xff000000 | (s_palette[t.indices[i]] & 0xffffff);
+    s_glideRenderer->setTextureData(0, address, argb.data(), t.largeLod, t.largeLod, TF_ARGB_8888);
+    t.paletteGeneration = s_paletteGeneration;
+}
 
 static const x86::reg32 GR_FOG_TABLE_SIZE   = 64;
 static const x86::reg32 MAX_NUM_SST         = 4;
@@ -526,15 +559,16 @@ static void grTexCombineFunction(WinApplication* app, x86::CPU& cpu, GrChipID_t 
     NFS2_USE(cpu);
     NFS2_USE(tmu);
     NFS2_USE(fnc);
-    NFS2_ASSERT(false);
+    /* NFS II SE selects the decal function once; with a single TMU the texture is used as it is */
 }
 
 static void grChromakeyValue(WinApplication* app, x86::CPU& cpu, GrColor_t  color)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(color);
-    //NFS2_ASSERT(false);
+    s_chromakeyColor = color;
+    if (accurate())
+        s_glideRenderer->setChromakey(s_chromakeyEnabled, s_chromakeyColor);
 }
 
 static void grAlphaTestReferenceValue(WinApplication* app, x86::CPU& cpu, GrAlpha_t value)
@@ -550,9 +584,14 @@ static void grTexDownloadTable(WinApplication* app, x86::CPU& cpu, GrChipID_t tm
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_USE(tmu);
-    NFS2_USE(type);
-    NFS2_USE(data);
-    NFS2_ASSERT(false);
+    if (type != 2 || !data)    /* only GR_TEXTABLE_PALETTE: 256 entries 0x00RRGGBB */
+        return;
+    const x86::reg32* entries = reinterpret_cast<const x86::reg32*>(data);
+    if (memcmp(entries, s_palette, sizeof(s_palette)) != 0)
+    {
+        memcpy(s_palette, entries, sizeof(s_palette));
+        ++s_paletteGeneration;
+    }
 }
 
 static void grRenderBuffer(WinApplication* app, x86::CPU& cpu, GrBuffer_t buffer)
@@ -595,7 +634,8 @@ static void grClipWindow(WinApplication* app, x86::CPU& cpu,
     static int s_budget = 40;
     if (s_budget-- > 0)
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "grClipWindow(%d, %d, %d, %d)", (int) minX, (int) minY, (int) maxX, (int) maxY);
-    //NFS2_ASSERT(false);
+    if (accurate())
+        s_glideRenderer->setClip(int(minX), int(minY), int(maxX), int(maxY));
 }
 
 static void grColorCombine(WinApplication* app, x86::CPU& cpu,
@@ -652,8 +692,9 @@ static void grAlphaBlendFunction(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_ASSERT(rgb_sf == GR_BLEND_SRC_ALPHA);
-    NFS2_ASSERT(alpha_sf == GR_BLEND_ONE);
-    NFS2_ASSERT(alpha_df == GR_BLEND_ZERO);
+    /* the alpha factors only write the frame buffer alpha, which nothing reads */
+    NFS2_USE(alpha_sf);
+    NFS2_USE(alpha_df);
     switch(rgb_df)
     {
     case GR_BLEND_ONE_MINUS_SRC_ALPHA:
@@ -699,8 +740,9 @@ static void grChromakeyMode(WinApplication* app, x86::CPU& cpu, GrChromakeyMode_
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(mode);
-    //NFS2_ASSERT(false);
+    s_chromakeyEnabled = mode != 0;    /* GR_CHROMAKEY_ENABLE */
+    if (accurate())
+        s_glideRenderer->setChromakey(s_chromakeyEnabled, s_chromakeyColor);
 }
 
 static void grAlphaTestFunction(WinApplication* app, x86::CPU& cpu, GrCmpFnc_t function)
@@ -714,8 +756,9 @@ static void grDepthBufferMode(WinApplication* app, x86::CPU& cpu, GrDepthBufferM
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(mode);
-    //NFS2_ASSERT(mode == GR_DEPTHBUFFER_ZBUFFER);
+    /* GR_DEPTHBUFFER_WBUFFER (2) and GR_DEPTHBUFFER_WBUFFER_COMPARE_TO_BIAS (4) */
+    if (accurate())
+        s_glideRenderer->setWBuffer(mode == 2 || mode == 4);
 }
 
 static void grDepthBufferFunction(WinApplication* app, x86::CPU& cpu, GrCmpFnc_t function)
@@ -738,24 +781,27 @@ static void grFogColorValue(WinApplication* app, x86::CPU& cpu, GrColor_t fogcol
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(fogcolor);
-    //NFS2_ASSERT(false);
+    s_fogColor = fogcolor;
+    if (accurate())
+        s_glideRenderer->setFog(s_fogEnabled, nullptr, s_fogColor);
 }
 
 static void grFogMode(WinApplication* app, x86::CPU& cpu, GrFogMode_t mode)
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(mode);
-    //NFS2_ASSERT(false);
+    s_fogEnabled = (mode & 0xff) == 2;    /* GR_FOG_WITH_TABLE */
+    if (accurate())
+        s_glideRenderer->setFog(s_fogEnabled, nullptr, s_fogColor);
 }
 
 static void grFogTable(WinApplication* app, x86::CPU& cpu, const GrFog_t ft[GR_FOG_TABLE_SIZE])
 {
     NFS2_USE(app);
     NFS2_USE(cpu);
-    NFS2_USE(ft);
-    //NFS2_ASSERT(false);
+    memcpy(s_fogTable, ft, sizeof(s_fogTable));
+    if (accurate())
+        s_glideRenderer->setFog(s_fogEnabled, s_fogTable, s_fogColor);
 }
 
 static x86::reg32 grLfbLock(WinApplication* app, x86::CPU& cpu, GrLock_t type, GrBuffer_t buffer,
@@ -954,10 +1000,22 @@ static void grTexDownloadMipMap(WinApplication* app, x86::CPU& cpu, GrChipID_t t
         s_glideRenderer->setTextureData(tmu, startAddress, &app->getMemory<const void>(info ->data),
                                         info->largeLod, info->smallLod, TF_ARGB_4444);
     }
+    else if (info->format == 5 && accurate())    /* GR_TEXFMT_P_8, colours from grTexDownloadTable */
+    {
+        PalettedTexture& p = s_palettedTextures[startAddress];
+        const x86::reg32 size = 256 >> info->largeLod;
+        const x86::reg8* indices = &app->getMemory<const x86::reg8>(info->data);
+        p.indices.assign(indices, indices + size * size);
+        p.largeLod = info->largeLod;
+        p.smallLod = info->smallLod;
+        uploadPaletted(startAddress, p);
+    }
     else
     {
         NFS2_ASSERT(false);
     }
+    if (info->format != 5)
+        s_palettedTextures.erase(startAddress);
     app->lockContext(cpu);
 }
 
@@ -985,7 +1043,34 @@ static void grTexSource(WinApplication* app, x86::CPU& cpu, GrChipID_t tmu, uint
     NFS2_USE(info);
     NFS2_ASSERT(tmu == 0);
     NFS2_ASSERT(info->aspectRatio == GR_ASPECT_1x1);
+    if (!s_palettedTextures.empty())
+    {
+        /* the palette applies when drawing: a paletted texture is converted again when it changed since */
+        std::unordered_map<x86::reg32, PalettedTexture>::iterator it = s_palettedTextures.find(startAddress);
+        if (it != s_palettedTextures.end() && it->second.paletteGeneration != s_paletteGeneration)
+        {
+            app->unlockContext(cpu);
+            uploadPaletted(startAddress, it->second);
+            app->lockContext(cpu);
+        }
+    }
     s_glideRenderer->setTexture(tmu, startAddress);
+}
+
+/* Glide's guFogGenerateExp: f = (1 - e^(-density * w)) normalised to the last entry, w = guFogTableIndexToW(i) */
+static void guFogGenerateExp(WinApplication* app, x86::CPU& cpu, GrFog_t* fogtable, float density)
+{
+    NFS2_USE(app);
+    NFS2_USE(cpu);
+    const float lastW = float(1 << (3 + (63 >> 2))) / float(8 - (63 & 3));
+    const float scale = 1.f / (1.f - std::exp(-density * lastW));
+    for (int i = 0; i < 64; ++i)
+    {
+        const float w = float(1 << (3 + (i >> 2))) / float(8 - (i & 3));
+        float f = (1.f - std::exp(-density * w)) * scale;
+        f = f > 1.f ? 1.f : (f < 0.f ? 0.f : f);
+        fogtable[i] = GrFog_t(f * 255.f);
+    }
 }
 
 static void grTexClampMode(WinApplication* app, x86::CPU& cpu, GrChipID_t tmu, GrTextureClampMode_t s_clampmode, GrTextureClampMode_t t_clampmode)
@@ -1081,6 +1166,7 @@ static BOOL grSstControl(WinApplication* app, x86::CPU& cpu, x86::reg32 code)
 
 Library s_glide2xLibrary = win32::Library("glide2x.dll");
 Library* s_glide2xRegistry = &(s_glide2xLibrary
+    .registerSymbol("_guFogGenerateExp@8", &Wrapper<decltype(&guFogGenerateExp), &guFogGenerateExp>::stdcall)
     .registerSymbol("_grGlideInit@0", &Wrapper<decltype(&grGlideInit), &grGlideInit>::stdcall)
     .registerSymbol("_grGlideShutdown@0", &Wrapper<decltype(&grGlideShutdown), &grGlideShutdown>::stdcall)
     .registerSymbol("_grSstQueryHardware@4", &Wrapper<decltype(&grSstQueryHardware), &grSstQueryHardware>::stdcall)

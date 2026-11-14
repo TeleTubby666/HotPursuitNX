@@ -149,6 +149,11 @@ file(GLOB NFS2SE_DISASM_SOURCES
 file(GLOB NFS2SE_DISASM_HEADERS
      "${CMAKE_SOURCE_DIR}/src/nfs2se/disassembly/*.h")
 
+file(GLOB NFS2SEA_DISASM_SOURCES
+     "${CMAKE_SOURCE_DIR}/src/nfs2sea/disassembly/*.cpp")
+file(GLOB NFS2SEA_DISASM_HEADERS
+     "${CMAKE_SOURCE_DIR}/src/nfs2sea/disassembly/*.h")
+
 file(GLOB NFS3HP_DISASM_SOURCES
      "${CMAKE_SOURCE_DIR}/src/nfs3hp/disassembly/*.cpp")
 file(GLOB NFS3HP_DISASM_HEADERS
@@ -205,6 +210,9 @@ function(add_game_exe name)
     if(name STREQUAL "nfs2se")
         set(DISASM_SOURCES ${NFS2SE_DISASM_SOURCES})
         set(DISASM_HEADERS ${NFS2SE_DISASM_HEADERS})
+    elseif(name STREQUAL "nfs2sea")
+        set(DISASM_SOURCES ${NFS2SEA_DISASM_SOURCES})
+        set(DISASM_HEADERS ${NFS2SEA_DISASM_HEADERS})
     elseif(name STREQUAL "nfs3hp")
         set(DISASM_SOURCES ${NFS3HP_DISASM_SOURCES})
         set(DISASM_HEADERS ${NFS3HP_DISASM_HEADERS})
@@ -234,6 +242,9 @@ function(add_game_exe name)
         if(name STREQUAL "nfs2se")
             set(game_title "Need for Speed II SE")
             set(game_icon "${CMAKE_SOURCE_DIR}/assets/icons/nfs2se.jpg")
+        elseif(name STREQUAL "nfs2sea")
+            set(game_title "Need for Speed II SE (3Dfx)")
+            set(game_icon "${CMAKE_SOURCE_DIR}/assets/icons/nfs2se.jpg")
         else()
             set(game_title "Need for Speed III HP")
             set(game_icon "${CMAKE_SOURCE_DIR}/assets/icons/nfs3hp.jpg")
@@ -251,4 +262,5 @@ function(add_game_exe name)
 endfunction()
 
 add_game_exe(nfs2se)
+add_game_exe(nfs2sea)
 add_game_exe(nfs3hp)

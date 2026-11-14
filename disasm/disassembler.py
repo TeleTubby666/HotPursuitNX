@@ -114,6 +114,7 @@ def disassemble(name, exe_path, data_segments=[], known_subroutines=[], split_in
                 code_part = application.read_section_data(section, current_address, current_address+8192)
                 if code_part:
                     subroutine = Subroutine(application, section, skipped_code, data_blob, jump_table, current_address in thread_routines)
+                    instruction = None
                     for instruction in disassembler.disasm(code_part, current_address):
                         current_address = subroutine.add_instruction(instruction)
                         if current_address:
@@ -124,6 +125,12 @@ def disassemble(name, exe_path, data_segments=[], known_subroutines=[], split_in
                                 for extra_inst in disassembler.disasm(application.read_section_data(section, split_instruction, instruction.address + instruction.size), split_instruction):
                                     subroutine.add_instruction(extra_inst)
                     else:
+                        if instruction is None:
+                            # not even one instruction could be decoded here: this is data that is not listed in
+                            # data_segments; skip a byte instead of retrying the same address forever
+                            print('Invalid instruction at address 0x%08x (data not listed in data_segments?)' % current_address)
+                            current_address += 1
+                            continue
                         print('Invalid instruction or end of stream at address 0x%08x' % (instruction.address + instruction.size))
                         current_address = instruction.address + instruction.size + 1
                     application.add_subroutine(subroutine)
