@@ -97,6 +97,7 @@ IDirectDraw2::IDirectDraw2()
 BOOL IDirectDraw2::QueryInterface(WinApplication* app, x86::CPU& cpu,
                                   REFGUID refiid, x86::reg32* pvvObject)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::QueryInterface %08x", (unsigned) refiid->Data1); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_USE(refiid);
@@ -142,6 +143,7 @@ HRESULT IDirectDraw2::CreatePalette(WinApplication* app, x86::CPU& cpu,
 HRESULT IDirectDraw2::CreateSurface(WinApplication* app, x86::CPU& cpu,
                                     DDSURFACEDESC* lpSurfaceDesc, x86::reg32* lpDirectDrawSurface, LPUNKNOWN pUnkOuter)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::CreateSurface flags=0x%x caps=0x%x", (unsigned) lpSurfaceDesc->dwFlags, (unsigned) lpSurfaceDesc->ddsCaps.dwCaps); } }
     NFS2_USE(cpu);
     NFS2_USE(lpSurfaceDesc);
     NFS2_ASSERT(pUnkOuter == nullptr);
@@ -164,6 +166,7 @@ HRESULT IDirectDraw2::EnumDisplayModes(WinApplication* app, x86::CPU& cpu,
                                        DWORD dwFlags, DDSURFACEDESC* lpDDSurfaceDesc,
                                        Packed<void> context, x86::reg32 lpEnumModesCallback)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::EnumDisplayModes flags=0x%x", (unsigned) dwFlags); } }
     NFS2_USE(dwFlags);
     if (lpDDSurfaceDesc)
     {
@@ -208,6 +211,7 @@ HRESULT IDirectDraw2::FlipToGDISurface(WinApplication* app, x86::CPU& cpu)
 
 HRESULT IDirectDraw2::GetCaps(WinApplication* app, x86::CPU& cpu, LPDDCAPS lpDDCaps, LPDDCAPS lpDDHelCaps)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::GetCaps"); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_ASSERT(lpDDCaps->dwSize == sizeof(DDCAPS));
@@ -279,6 +283,7 @@ void IDirectDraw2::RestoreDisplayMode(WinApplication* app, x86::CPU& cpu)
 
 HRESULT IDirectDraw2::SetCooperativeLevel(WinApplication* app, x86::CPU& cpu, HWND hWNd, DWORD dwFlags)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::SetCooperativeLevel hwnd=0x%x flags=0x%x", (unsigned) hWNd, (unsigned) dwFlags); } }
     NFS2_USE(cpu);
     NFS2_USE(dwFlags);
     Window* window = dynamic_cast<Window*>(app->getResource(hWNd));
@@ -298,6 +303,7 @@ HRESULT IDirectDraw2::SetDisplayMode(WinApplication* app, x86::CPU& cpu,
                                      DWORD dwWidth, DWORD dwHeight, DWORD dwBPP,
                                      DWORD dwRefreshRate, DWORD dwFlags)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::SetDisplayMode %ux%ux%u", (unsigned) dwWidth, (unsigned) dwHeight, (unsigned) dwBPP); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_USE(dwRefreshRate);
@@ -318,6 +324,7 @@ void IDirectDraw2::WaitForVerticalBlank(WinApplication* app, x86::CPU& cpu)
 HRESULT IDirectDraw2::GetAvailableVidMem(WinApplication* app, x86::CPU& cpu,
                                          LPDDSCAPS lpDDSCaps, LPDWORD lpdwTotal, LPDWORD lpdwFree)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectDraw::GetAvailableVidMem"); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_USE(lpDDSCaps);

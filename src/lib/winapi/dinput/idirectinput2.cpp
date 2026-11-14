@@ -39,6 +39,7 @@ IDirectInput2::IDirectInput2()
 HRESULT IDirectInput2::CreateDevice(WinApplication* app, x86::CPU& cpu,
                                     REFGUID rguid, Packed<IDirectInputDevice>* lplpDirectInputDevice, LPUNKNOWN pUnkOuter)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: IDirectInput::CreateDevice %08x", (unsigned) rguid->Data1); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_ASSERT(pUnkOuter == nullptr);

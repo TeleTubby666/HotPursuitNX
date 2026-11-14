@@ -158,6 +158,7 @@ HANDLE CreateThread(WinApplication* app, x86::CPU& cpu,
                     LPTHREAD_START_ROUTINE lpStartAddress, x86::reg32 lpParameter, DWORD dwCreationFlags,
                     LPDWORD lpThreadId)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: CreateThread entry=0x%x", (unsigned) lpStartAddress); } }
     NFS2_USE(cpu);
     NFS2_USE(lpThreadAttributes);
     NFS2_ASSERT(dwStackSize <= 1024*1024);

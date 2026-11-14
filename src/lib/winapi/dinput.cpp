@@ -10,6 +10,7 @@ HRESULT DirectInputCreateA(WinApplication* app, x86::CPU& cpu,
                            HINSTANCE hinst, DWORD dwVersion, Packed<IDirectInput2>* lplpDirectInput,
                            LPVOID punkOuter)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: DirectInputCreateA"); } }
     NFS2_USE(cpu);
     NFS2_USE(hinst);
     NFS2_USE(dwVersion);

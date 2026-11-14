@@ -14,6 +14,7 @@ namespace win32 { namespace ddraw
 HRESULT DirectDrawCreate(WinApplication* app, x86::CPU& cpu,
                          GUID* lpGUID, x86::reg32* lplpDD, void* pUnkOuter)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: DirectDrawCreate"); } }
     NFS2_USE(cpu);
     NFS2_USE(lpGUID);
     static bool s_init = com::InitialiseComMemory(app);
@@ -27,6 +28,7 @@ HRESULT DirectDrawCreate(WinApplication* app, x86::CPU& cpu,
 HRESULT DirectDrawEnumerateA(WinApplication* app, x86::CPU& cpu,
                              x86::reg32 lpCallback, x86::reg32 lpCallbackParam)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: DirectDrawEnumerateA"); } }
     cpu.esp -= 20;
     app->getMemory<x86::reg32>(cpu.esp + 0) = lpCallback;
     app->getMemory<x86::reg32>(cpu.esp + 4) = 0;

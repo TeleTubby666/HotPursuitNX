@@ -383,6 +383,7 @@ struct GrHwConfiguration
 
 static void grGlideInit(WinApplication* app, x86::CPU& cpu)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: grGlideInit"); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     s_renderer = nullptr;
@@ -406,6 +407,7 @@ static void grGlideShutdown(WinApplication* app, x86::CPU& cpu)
 
 static x86::reg32 grSstQueryHardware(WinApplication* app, x86::CPU& cpu, GrHwConfiguration *hwconfig)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: grSstQueryHardware"); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     hwconfig->num_sst = 1;
@@ -416,6 +418,13 @@ static x86::reg32 grSstQueryHardware(WinApplication* app, x86::CPU& cpu, GrHwCon
     hwconfig->SSTs[0].sli = 0;
     hwconfig->SSTs[0].tmuConfig[0].tmuRev = 1;
     hwconfig->SSTs[0].tmuConfig[0].tmuRam = 16;
+    if (accurate())
+    {
+        /* NFS II SE (1997) only knows the original Voodoo Graphics board: report that, as a 2 MB card */
+        hwconfig->SSTs[0].type = 0;    /* GR_SSTTYPE_VOODOO */
+        hwconfig->SSTs[0].fbRam = 2;
+        hwconfig->SSTs[0].tmuConfig[0].tmuRam = 2;
+    }
     return true;
 }
 
@@ -429,6 +438,7 @@ static x86::reg32 grSstQueryBoards(WinApplication* app, x86::CPU& cpu, GrHwConfi
 
 static void grSstSelect(WinApplication* app, x86::CPU& cpu, x86::sreg32 sst)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: grSstSelect %d", (int) sst); } }
     NFS2_USE(app);
     NFS2_USE(cpu);
     NFS2_ASSERT(sst == 0);
@@ -528,6 +538,7 @@ static x86::reg32 grSstWinOpen(WinApplication* app, x86::CPU& cpu, HWND hWnd,
 
 static void grSstWinClose(WinApplication* app, x86::CPU& cpu)
 {
+    { static int s_trace = 30; if (s_trace > 0) { --s_trace; SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "trace: grSstWinClose"); } }
     NFS2_USE(cpu);
     if (s_glideRenderer)
     {
