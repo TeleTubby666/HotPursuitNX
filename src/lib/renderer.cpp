@@ -8,6 +8,41 @@
 namespace win32
 {
 
+/* measurement: where the time of a frame goes (one line every 5 seconds) */
+namespace
+{
+    struct Perf
+    {
+        Uint64 windowStart, uploadNs, drawNs, swapNs, contextNs, lastFlip, flipGapMaxNs;
+        unsigned flips, frontUnlocks;
+    };
+    Perf s_perf = {};
+
+    void perfReport()
+    {
+        const Uint64 now = SDL_GetTicksNS();
+        if (!s_perf.windowStart)
+            s_perf.windowStart = now;
+        const Uint64 span = now - s_perf.windowStart;
+        if (span < 5000000000ull)
+            return;
+        const unsigned presents = s_perf.flips + s_perf.frontUnlocks;
+        const double seconds = span / 1e9;
+        const double inPresent = (s_perf.uploadNs + s_perf.drawNs + s_perf.swapNs + s_perf.contextNs) / 1e6;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "perf: %.1f flips/s, %.1f front unlocks/s; per present: upload %.2f ms, draw %.2f ms, swap %.2f ms, context %.2f ms; "
+                    "%.0f%% of the time in present, longest frame %.0f ms",
+                    s_perf.flips / seconds, s_perf.frontUnlocks / seconds,
+                    presents ? s_perf.uploadNs / 1e6 / presents : 0.0, presents ? s_perf.drawNs / 1e6 / presents : 0.0,
+                    presents ? s_perf.swapNs / 1e6 / presents : 0.0, presents ? s_perf.contextNs / 1e6 / presents : 0.0,
+                    inPresent / (seconds * 10.0), s_perf.flipGapMaxNs / 1e6);
+        const Uint64 lastFlip = s_perf.lastFlip;
+        s_perf = Perf();
+        s_perf.windowStart = now;
+        s_perf.lastFlip = lastFlip;
+    }
+}
+
 void GLAPIENTRY errorCallback(GLenum /*source*/, GLenum type, GLuint /*id*/, GLenum severity, GLsizei /*length*/, const GLchar* message, const void* /*userParam*/)
 {
     if (severity != GL_DEBUG_SEVERITY_NOTIFICATION)
@@ -140,11 +175,14 @@ void Renderer::present()
         glVertex3f(0.f, GLfloat(m_height), 1.f);
     glEnd();
     glFlush();
+    const Uint64 swapStart = SDL_GetTicksNS();
     SDL_GL_SwapWindow(m_window->m_window);
+    s_perf.swapNs += SDL_GetTicksNS() - swapStart;
 }
 
 void Renderer::update()
 {
+    const Uint64 updateStart = SDL_GetTicksNS();
     glBindTexture(GL_TEXTURE_2D, m_texture);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -165,7 +203,11 @@ void Renderer::update()
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, m_width, m_height, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, screenData);
         free(screenData);
     }
+    const Uint64 uploadEnd = SDL_GetTicksNS();
+    s_perf.uploadNs += uploadEnd - updateStart;
+    const Uint64 swapBefore = s_perf.swapNs;
     present();
+    s_perf.drawNs += (SDL_GetTicksNS() - uploadEnd) - (s_perf.swapNs - swapBefore);
 }
 
 x86::reg32 Renderer::lock(x86::reg32 index)
@@ -177,20 +219,35 @@ void Renderer::unlock(x86::reg32 index)
 {
     if (index == 0)
     {
+        const Uint64 t0 = SDL_GetTicksNS();
         setCurrent();
         SDL_GL_SetSwapInterval(0);
+        const Uint64 t1 = SDL_GetTicksNS();
         update();
+        const Uint64 t2 = SDL_GetTicksNS();
         clearCurrent();
+        s_perf.contextNs += (t1 - t0) + (SDL_GetTicksNS() - t2);
+        ++s_perf.frontUnlocks;
+        perfReport();
     }
 }
 
 void Renderer::swap()
 {
+    const Uint64 t0 = SDL_GetTicksNS();
+    if (s_perf.lastFlip && t0 - s_perf.lastFlip > s_perf.flipGapMaxNs)
+        s_perf.flipGapMaxNs = t0 - s_perf.lastFlip;
+    s_perf.lastFlip = t0;
     setCurrent();
     SDL_GL_SetSwapInterval(1);
     m_currentBuffer = 1 - m_currentBuffer;
+    const Uint64 t1 = SDL_GetTicksNS();
     update();
+    const Uint64 t2 = SDL_GetTicksNS();
     clearCurrent();
+    s_perf.contextNs += (t1 - t0) + (SDL_GetTicksNS() - t2);
+    ++s_perf.flips;
+    perfReport();
 }
 
 }

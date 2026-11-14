@@ -127,6 +127,21 @@ void IDirectInputEffect::applyParameters(WinApplication* app, int effectId, cons
                 params.period = (unsigned) readLong(12) / 1000;
             break;
         default:
+            /* DICONDITION per axis: lOffset, lPositiveCoefficient, lNegativeCoefficient, saturations, lDeadBand */
+            if (effect->cbTypeSpecificParams >= 24)
+            {
+                static Uint64 s_lastCondition = 0;
+                static unsigned s_conditionLogs = 900;
+                const Uint64 now = SDL_GetTicks();
+                if (s_conditionLogs && now - s_lastCondition >= 400)
+                {
+                    --s_conditionLogs;
+                    s_lastCondition = now;
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                "ff spring: effect %d offset=%d coeff+=%d coeff-=%d sat+=%d sat-=%d dead=%d gain=%u",
+                                effectId, readLong(0), readLong(4), readLong(8), readLong(12), readLong(16), readLong(20), params.gain);
+                }
+            }
             break;
         }
         if (params.magnitude > 10000)
@@ -134,10 +149,22 @@ void IDirectInputEffect::applyParameters(WinApplication* app, int effectId, cons
     }
     ForceFeedback::setParams(effectId, params);
 
+    /* the first calls in full, afterwards a time series (at most every 400 ms per effect) */
     static unsigned s_paramLogs = 80;
-    if (s_paramLogs)
+    static unsigned s_seriesLogs = 2500;
+    static Uint64 s_lastSeries[8] = {};
+    const Uint64 nowTicks = SDL_GetTicks();
+    bool series = false;
+    if (!s_paramLogs && s_seriesLogs && params.type != ForceFeedback::Condition && nowTicks - s_lastSeries[effectId & 7] >= 400)
     {
-        --s_paramLogs;
+        --s_seriesLogs;
+        s_lastSeries[effectId & 7] = nowTicks;
+        series = true;
+    }
+    if (s_paramLogs || series)
+    {
+        if (s_paramLogs)
+            --s_paramLogs;
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "force feedback: effect %d parameters flags=0x%x type=%d magnitude=%d start=%d end=%d period=%ums gain=%u duration=%ums (size %u, type specific %u bytes)",
                     effectId, (unsigned) flags, (int) params.type, params.magnitude, params.start, params.end, params.period,
