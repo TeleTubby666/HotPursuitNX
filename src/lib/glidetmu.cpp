@@ -10,7 +10,6 @@ GlideTMU::GlideTMU(x86::reg32 atlasSize)
     :   m_textureSlots(new GlTextureSlot*[s_atlasLodCount])
     ,   m_textureSlotPool(new GlTextureSlot[s_atlasSlotCount])
     ,   m_firstFreeTextureSlot(m_textureSlotPool)
-    ,   m_textureMem(new GlTextureSlot*[atlasSize])
 {
     for (x86::reg32 i = 0; i < s_atlasLodCount; ++i)
     {
@@ -30,14 +29,12 @@ GlideTMU::GlideTMU(x86::reg32 atlasSize)
         slot->next = m_textureSlots[0];
         m_textureSlots[0] = slot;
     }
-    memset(m_textureMem, 0, atlasSize*sizeof(GlTextureSlot*));
 }
 
 GlideTMU::~GlideTMU()
 {
     delete[] m_textureSlots;
     delete[] m_textureSlotPool;
-    delete[] m_textureMem;
 }
 
 x86::reg32 GlideTMU::textureMemStart() const
@@ -52,7 +49,7 @@ x86::reg32 GlideTMU::textureMemEnd() const
 
 GlTextureSlot** GlideTMU::getTextureInfo(x86::reg32 address)
 {
-    return m_textureMem + address / sizeof(GlTextureSlot*);
+    return &m_textureMem[address];
 }
 
 GlTextureSlot* GlideTMU::allocateTextureSlot()

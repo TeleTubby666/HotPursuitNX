@@ -34,6 +34,11 @@ Also, be sure to place your extracted game data (see step 1) in `sdmc:/switch/nf
 and `sdmc:/switch/nfs3hp/` for their respective games. (The FeData and Gamedata
 folders should be beside the nro in that folder).
 
+`nfs2sea.nro` is Need for Speed II SE recompiled from `NFS2SEA.EXE`, the game's
+3Dfx build. It draws through the Glide renderer on the GPU instead of the game's
+software renderer (`nfs2se.nro`). It uses the same game data: place it next to
+`nfs2se.nro` in `sdmc:/switch/nfs2se/`.
+
 ## Controls
 
 The Switch controls are mapped to the original keyboard commands used by both games.
@@ -75,5 +80,5 @@ cmake -B build-switch \
 cmake --build build-switch -j$(nproc)
 ```
 
-The build artefacts are written to `build-switch/nfs2se.nro` and
-`build-switch/nfs3hp.nro`.
+The build artefacts are written to `build-switch/nfs2se.nro`,
+`build-switch/nfs2sea.nro` and `build-switch/nfs3hp.nro`.

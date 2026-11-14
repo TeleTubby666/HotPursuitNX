@@ -3,6 +3,7 @@
 
 #include <lib/winapp.h>
 #include <winapi/types.h>
+#include <unordered_map>
 
 namespace win32
 {
@@ -40,7 +41,8 @@ private:
     GlTextureSlot** m_textureSlots;
     GlTextureSlot*  m_textureSlotPool;
     GlTextureSlot*  m_firstFreeTextureSlot;
-    GlTextureSlot** m_textureMem;
+    /* the game places textures at addresses of its choice (between grTexMinAddress and grTexMaxAddress) */
+    std::unordered_map<x86::reg32, GlTextureSlot*> m_textureMem;
 };
 
 }

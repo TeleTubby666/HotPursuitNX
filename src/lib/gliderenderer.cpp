@@ -2,6 +2,7 @@
 #include <lib/renderer.h>
 #include <lib/glidetmu.h>
 #include <SDL3/SDL.h>
+#include <cstring>
 #include <SDL3/SDL_opengl.h>
 
 namespace win32
@@ -30,6 +31,8 @@ static PFNGLENABLEVERTEXATTRIBARRAYPROC glEnableVertexAttribArray;
 static PFNGLGETUNIFORMLOCATIONPROC glGetUniformLocation;
 static PFNGLUNIFORMMATRIX4FVPROC glUniformMatrix4fv;
 static PFNGLUNIFORM1IPROC glUniform1i;
+static PFNGLUNIFORM3FPROC glUniform3f;
+static PFNGLUNIFORM4FPROC glUniform4f;
 static PFNGLACTIVETEXTUREPROC glActiveTexture;
 static PFNGLTEXSTORAGE2DPROC glTexStorage2D;
 static PFNGLGENFRAMEBUFFERSPROC glGenFramebuffers;
@@ -50,6 +53,8 @@ static const char g_glVertexShader[] = ""
 "in vec2 g_texCoord;"
 "in vec4 g_combine;"
 "in vec4 g_atlasInfo;"
+"in float g_fog;"
+"out float v_fog;"
 "out vec3 v_texCoord;"
 "out vec4 v_color;"
 "flat out vec4 v_combine;"
@@ -61,6 +66,7 @@ static const char g_glVertexShader[] = ""
 "    v_combine = g_combine;"
 "    v_color = g_color;"
 "    v_atlasInfo = g_atlasInfo;"
+"    v_fog = g_fog;"
 "    gl_Position = u_transform * vec4(g_position, 1.0);"
 "}";
 
@@ -70,8 +76,11 @@ static const char g_glFragmentShader[] =
 "in vec4 v_color;"
 "flat in vec4 v_combine;"
 "flat in vec4 v_atlasInfo;"
+"in float v_fog;"
 "layout (location=0) out vec4 o_color;"
 "uniform sampler2D u_texture;"
+"uniform vec4 u_chromakey;"
+"uniform vec3 u_fogColor;"
 ""
 "vec4 getColor(vec2 coords)"
 "{"
@@ -99,6 +108,8 @@ static const char g_glFragmentShader[] =
 "    vec4 color = vec4(mix(v_color.rgb, v_color.rgb * textureColor.rgb, v_combine.s),"
 "                      mix(v_color.a, v_color.a * textureColor.a, v_combine.t));"
 "    if (color.a < 0.0625) discard;"
+"    if (u_chromakey.a > 0.5 && all(lessThan(abs(color.rgb - u_chromakey.rgb), vec3(0.02)))) discard;"
+"    color.rgb = mix(color.rgb, u_fogColor, v_fog);"
 "    o_color = color;"
 "}";
 
@@ -109,6 +120,7 @@ struct GlVertex
     float       u, v;
     float       colorCombine, alphaCombine, texWrap, u2;
     float       atlasSize, width, offX, offY;
+    float       fog;
 };
 
 static const x86::reg32 s_maxVertexCount = 32000;
@@ -121,7 +133,16 @@ GlideRenderer::GlideRenderer(Renderer* renderer)
     ,   m_zBuffer(true)
     ,   m_zTest(true)
     ,   m_alphaBlend(true)
+    ,   m_clip(false)
+    ,   m_chromakey(false)
+    ,   m_chromakeyColor(0)
+    ,   m_wBuffer(false)
+    ,   m_fog(false)
+    ,   m_fogColor(0)
 {
+    m_clipRect[0] = m_clipRect[1] = m_clipRect[2] = m_clipRect[3] = 0;
+    for (int i = 0; i < 64; ++i)
+        m_fogTable[i] = 0;
     m_tmus[0] = new GlideTMU(s_atlasSize);
     //m_tmus[1] = new GlideTMU(s_atlasSize);
     m_renderer->setCurrent();
@@ -171,6 +192,10 @@ GlideRenderer::GlideRenderer(Renderer* renderer)
     NFS2_ASSERT(glUniformMatrix4fv);
     glUniform1i = (PFNGLUNIFORM1IPROC)SDL_GL_GetProcAddress("glUniform1i");
     NFS2_ASSERT(glUniform1i);
+    glUniform3f = (PFNGLUNIFORM3FPROC)SDL_GL_GetProcAddress("glUniform3f");
+    NFS2_ASSERT(glUniform3f);
+    glUniform4f = (PFNGLUNIFORM4FPROC)SDL_GL_GetProcAddress("glUniform4f");
+    NFS2_ASSERT(glUniform4f);
     glActiveTexture = (PFNGLACTIVETEXTUREPROC)SDL_GL_GetProcAddress("glActiveTexture");
     NFS2_ASSERT(glActiveTexture);
     glTexStorage2D = (PFNGLTEXSTORAGE2DPROC)SDL_GL_GetProcAddress("glTexStorage2D");
@@ -305,7 +330,10 @@ void GlideRenderer::compileShaders()
     m_attributes[2] = glGetAttribLocation(m_shaderProgram, "g_texCoord");
     m_attributes[3] = glGetAttribLocation(m_shaderProgram, "g_combine");
     m_attributes[4] = glGetAttribLocation(m_shaderProgram, "g_atlasInfo");
+    m_attributes[5] = glGetAttribLocation(m_shaderProgram, "g_fog");
     m_transform = glGetUniformLocation(m_shaderProgram, "u_transform");
+    m_chromakeyUniform = glGetUniformLocation(m_shaderProgram, "u_chromakey");
+    m_fogColorUniform = glGetUniformLocation(m_shaderProgram, "u_fogColor");
     //glUniform1i(glGetUniformLocation(m_shaderProgram, "u_texture"), 0);
 }
 
@@ -333,6 +361,12 @@ void GlideRenderer::flush()
     dcall.zTest = m_zTest;
     dcall.zBuffer = m_zBuffer;
     dcall.alphaBlend = m_alphaBlend;
+    dcall.clip = m_clip;
+    for (int i = 0; i < 4; ++i)
+        dcall.clipRect[i] = m_clipRect[i];
+    dcall.chromakey = m_chromakey;
+    dcall.chromakeyColor = m_chromakeyColor;
+    dcall.fogColor = m_fogColor;
     dcall.lastTriangle = m_vertexCount;
     m_drawCalls.push_back(dcall);
 }
@@ -370,6 +404,11 @@ void GlideRenderer::swap()
         glEnableVertexAttribArray(m_attributes[3]);
         glVertexAttribPointer(m_attributes[4], 4, GL_FLOAT, GL_FALSE, sizeof(GlVertex), (const void*)(4*10));
         glEnableVertexAttribArray(m_attributes[4]);
+        if (m_attributes[5] >= 0)
+        {
+            glVertexAttribPointer(m_attributes[5], 1, GL_FLOAT, GL_FALSE, sizeof(GlVertex), (const void*)(4*14));
+            glEnableVertexAttribArray(m_attributes[5]);
+        }
         x86::reg32 first = 0;
         for (std::vector<DrawCall>::const_iterator it = m_drawCalls.begin(); it != m_drawCalls.end(); ++it)
         {
@@ -390,10 +429,25 @@ void GlideRenderer::swap()
             {
                 glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ZERO);
             }
+            if (it->clip)
+            {
+                /* framebuffer row 0 is the top of the picture (Glide's upper-left origin) */
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(it->clipRect[0], it->clipRect[1], it->clipRect[2] - it->clipRect[0], it->clipRect[3] - it->clipRect[1]);
+            }
+            else
+            {
+                glDisable(GL_SCISSOR_TEST);
+            }
+            glUniform4f(m_chromakeyUniform, float(it->chromakeyColor >> 16 & 0xff) / 255.f, float(it->chromakeyColor >> 8 & 0xff) / 255.f,
+                        float(it->chromakeyColor & 0xff) / 255.f, it->chromakey ? 1.f : 0.f);
+            glUniform3f(m_fogColorUniform, float(it->fogColor >> 16 & 0xff) / 255.f, float(it->fogColor >> 8 & 0xff) / 255.f,
+                        float(it->fogColor & 0xff) / 255.f);
             glDrawArrays(GL_TRIANGLES, first, it->lastTriangle-first);
             first = it->lastTriangle;
         }
         m_drawCalls.clear();
+        glDisable(GL_SCISSOR_TEST);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
@@ -507,6 +561,12 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
                                | (((pixelData[i] & 0x001f) >> 0) * 0xff / 0x1f)  << 8
                                | ((pixelData[i] & 0x8000) ? 0xff : 0x00);
                 break;
+            case TF_ARGB_8888:
+                {
+                    const x86::reg32 argb = reinterpret_cast<const x86::reg32*>(data)[i];
+                    textureData[i] = (argb << 8) | (argb >> 24);
+                    break;
+                }
             case TF_ARGB_4444:
                 {
                     x86::reg8 r = pixelData[i] >> 8  & 0xf;
@@ -540,72 +600,121 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
     m_renderer->clearCurrent();
 }
 
+void GlideRenderer::setClip(int minX, int minY, int maxX, int maxY)
+{
+    const bool clip = true;
+    if (clip != m_clip || minX != m_clipRect[0] || minY != m_clipRect[1] || maxX != m_clipRect[2] || maxY != m_clipRect[3])
+    {
+        flush();
+        m_clip = clip;
+        m_clipRect[0] = minX;
+        m_clipRect[1] = minY;
+        m_clipRect[2] = maxX;
+        m_clipRect[3] = maxY;
+    }
+}
+
+void GlideRenderer::setChromakey(bool enable, x86::reg32 color)
+{
+    color &= 0xffffff;
+    if (enable != m_chromakey || (enable && color != m_chromakeyColor))
+    {
+        flush();
+        m_chromakey = enable;
+        m_chromakeyColor = color;
+    }
+}
+
+void GlideRenderer::setWBuffer(bool enable)
+{
+    m_wBuffer = enable;
+}
+
+void GlideRenderer::setFog(bool enable, const x86::reg8* table, x86::reg32 color)
+{
+    color &= 0xffffff;
+    if (enable && color != m_fogColor)
+    {
+        flush();
+        m_fogColor = color;
+    }
+    m_fog = enable;
+    if (table)
+        memcpy(m_fogTable, table, sizeof(m_fogTable));
+}
+
+/* Glide's fog table is indexed by w; entry i is for w = 2^(3 + i/4) / (8 - i%4) (guFogTableIndexToW) */
+static float fogTableW(int i)
+{
+    return float((1 << (3 + (i >> 2)))) / float(8 - (i & 3));
+}
+
+static float fogFromTable(const x86::reg8* table, float oow)
+{
+    if (oow <= 0.f)
+        return table[63] / 255.f;
+    const float w = 1.f / oow;
+    if (w <= fogTableW(0))
+        return table[0] / 255.f;
+    for (int i = 0; i < 63; ++i)
+    {
+        const float w0 = fogTableW(i), w1 = fogTableW(i + 1);
+        if (w < w1)
+        {
+            const float t = (w - w0) / (w1 - w0);
+            return (table[i] + (table[i + 1] - table[i]) * t) / 255.f;
+        }
+    }
+    return table[63] / 255.f;
+}
+
+void GlideRenderer::addVertex(const GrVertex* v)
+{
+    GlVertex& o = m_vertices[m_vertexCount];
+    o.x = v->x;
+    o.y = v->y;
+    /* games add 3 << 18 to x and y so the hardware snaps them to its sub-pixel grid; it only keeps the low bits */
+    if (o.x >= 524288.f)
+        o.x -= 786432.f;
+    if (o.y >= 524288.f)
+        o.y -= 786432.f;
+    if (m_wBuffer)
+    {
+        /* W-buffer: depth from 1/w, which interpolates linearly across the screen like the hardware does */
+        const float oow = v->oow > 1.f ? 1.f : (v->oow < 0.f ? 0.f : v->oow);
+        o.z = 65535.f * (1.f - oow);
+    }
+    else
+    {
+        NFS2_ASSERT(65535.f - v->ooz >= 0.f);
+        NFS2_ASSERT(65535.f - v->ooz <= 65535.f);
+        o.z = v->ooz;
+    }
+    o.color = (x86::reg8)(v->r)
+            | (x86::reg8)(v->g) << 8
+            | (x86::reg8)(v->b) << 16
+            | (x86::reg8)(v->a) << 24;
+    o.u = v->tmuvtx[0].sow;
+    o.v = v->tmuvtx[0].tow;
+    o.colorCombine = m_colorFactor;
+    o.alphaCombine = m_alphaFactor;
+    o.atlasSize = s_atlasSize;
+    o.texWrap = 1.f;
+    o.u2 = v->oow;
+    o.width = float(m_textureOffsetW);
+    o.offX = float(m_textureOffsetX);
+    o.offY = float(m_textureOffsetY);
+    o.fog = m_fog ? fogFromTable(m_fogTable, v->oow) : 0.f;
+    m_vertexCount++;
+}
+
 void GlideRenderer::drawTriangle(const GrVertex* a, const GrVertex* b, const GrVertex* c)
 {
-    NFS2_ASSERT(65535.f - a->ooz >= 0.f);
-    NFS2_ASSERT(65535.f - b->ooz >= 0.f);
-    NFS2_ASSERT(65535.f - c->ooz >= 0.f);
-    NFS2_ASSERT(65535.f - a->ooz <= 65535.f);
-    NFS2_ASSERT(65535.f - b->ooz <= 65535.f);
-    NFS2_ASSERT(65535.f - c->ooz <= 65535.f);
-    m_vertices[m_vertexCount].x = a->x;
-    m_vertices[m_vertexCount].y = a->y;
-    m_vertices[m_vertexCount].z = a->ooz;
-    m_vertices[m_vertexCount].color = (x86::reg8)(a->r)
-                                    | (x86::reg8)(a->g) << 8
-                                    | (x86::reg8)(a->b) << 16
-                                    | (x86::reg8)(a->a) << 24;
-    m_vertices[m_vertexCount].u = a->tmuvtx[0].sow;
-    m_vertices[m_vertexCount].v = a->tmuvtx[0].tow;
-    m_vertices[m_vertexCount].colorCombine = m_colorFactor;
-    m_vertices[m_vertexCount].alphaCombine = m_alphaFactor;
-    m_vertices[m_vertexCount].atlasSize = s_atlasSize;
-    m_vertices[m_vertexCount].texWrap = 1.f;
-    m_vertices[m_vertexCount].u2 = a->oow;
-    m_vertices[m_vertexCount].width = float(m_textureOffsetW);
-    m_vertices[m_vertexCount].offX = float(m_textureOffsetX);
-    m_vertices[m_vertexCount].offY = float(m_textureOffsetY);
-    m_vertexCount++;
-    
-    m_vertices[m_vertexCount].x = b->x;
-    m_vertices[m_vertexCount].y = b->y;
-    m_vertices[m_vertexCount].z = b->ooz;
-    m_vertices[m_vertexCount].color = (x86::reg8)(b->r)
-                                              | (x86::reg8)(b->g) << 8
-                                              | (x86::reg8)(b->b) << 16
-                                              | (x86::reg8)(b->a) << 24;
-    m_vertices[m_vertexCount].u = b->tmuvtx[0].sow;
-    m_vertices[m_vertexCount].v = b->tmuvtx[0].tow;
-    m_vertices[m_vertexCount].colorCombine = m_colorFactor;
-    m_vertices[m_vertexCount].alphaCombine = m_alphaFactor;
-    m_vertices[m_vertexCount].atlasSize = s_atlasSize;
-    m_vertices[m_vertexCount].texWrap = 1.f;
-    m_vertices[m_vertexCount].u2 = b->oow;
-    m_vertices[m_vertexCount].width = float(m_textureOffsetW);
-    m_vertices[m_vertexCount].offX = float(m_textureOffsetX);
-    m_vertices[m_vertexCount].offY = float(m_textureOffsetY);
-    m_vertexCount++;
-
-    m_vertices[m_vertexCount].x = c->x;
-    m_vertices[m_vertexCount].y = c->y;
-    m_vertices[m_vertexCount].z = c->ooz;
-    m_vertices[m_vertexCount].color = (x86::reg8)(c->r)
-                                              | (x86::reg8)(c->g) << 8
-                                              | (x86::reg8)(c->b) << 16
-                                              | (x86::reg8)(c->a) << 24;
-    m_vertices[m_vertexCount].u = c->tmuvtx[0].sow;
-    m_vertices[m_vertexCount].v = c->tmuvtx[0].tow;
-    m_vertices[m_vertexCount].colorCombine = m_colorFactor;
-    m_vertices[m_vertexCount].alphaCombine = m_alphaFactor;
-    m_vertices[m_vertexCount].texWrap = 1.f;
-    m_vertices[m_vertexCount].u2 = c->oow;
-    m_vertices[m_vertexCount].atlasSize = s_atlasSize;
-    m_vertices[m_vertexCount].width = float(m_textureOffsetW);
-    m_vertices[m_vertexCount].offX = float(m_textureOffsetX);
-    m_vertices[m_vertexCount].offY = float(m_textureOffsetY);
-    m_vertexCount++;
-
-    NFS2_ASSERT(m_vertexCount < s_maxVertexCount);
+    if (m_vertexCount + 3 >= s_maxVertexCount)
+        return;
+    addVertex(a);
+    addVertex(b);
+    addVertex(c);
 }
 
 }
