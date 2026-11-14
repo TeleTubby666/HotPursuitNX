@@ -371,8 +371,25 @@ void GlideRenderer::flush()
     m_drawCalls.push_back(dcall);
 }
 
+/* measurement: one line every 5 seconds about the Glide frames (frame rate, work per frame) */
+namespace
+{
+    struct GlidePerf
+    {
+        Uint64 windowStart, lastSwap, swapNs, uploadNs, maxGapNs;
+        unsigned frames, triangles, drawCalls, uploads;
+    };
+    GlidePerf s_glidePerf = {};
+}
+
 void GlideRenderer::swap()
 {
+    const Uint64 perfStart = SDL_GetTicksNS();
+    if (s_glidePerf.lastSwap && perfStart - s_glidePerf.lastSwap > s_glidePerf.maxGapNs)
+        s_glidePerf.maxGapNs = perfStart - s_glidePerf.lastSwap;
+    s_glidePerf.lastSwap = perfStart;
+    s_glidePerf.triangles += m_vertexCount / 3;
+    s_glidePerf.drawCalls += unsigned(m_drawCalls.size()) + (m_vertexCount ? 1 : 0);
     m_renderer->setCurrent();
     glBindFramebuffer(GL_FRAMEBUFFER, m_framebuffer);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, m_renderer->m_texture, 0);
@@ -458,6 +475,26 @@ void GlideRenderer::swap()
     m_renderer->present();
     m_renderer->clearCurrent();
     m_vertexCount = 0;
+
+    const Uint64 perfEnd = SDL_GetTicksNS();
+    s_glidePerf.swapNs += perfEnd - perfStart;
+    ++s_glidePerf.frames;
+    if (!s_glidePerf.windowStart)
+        s_glidePerf.windowStart = perfEnd;
+    else if (perfEnd - s_glidePerf.windowStart >= 5000000000ull && s_glidePerf.frames)
+    {
+        const double seconds = (perfEnd - s_glidePerf.windowStart) / 1e9;
+        const unsigned f = s_glidePerf.frames;
+        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                    "perf glide: %.1f frames/s, longest frame %.0f ms; per frame: %u triangles, %u draw calls, "
+                    "swap %.2f ms, %.1f texture uploads (%.2f ms)",
+                    f / seconds, s_glidePerf.maxGapNs / 1e6, s_glidePerf.triangles / f, s_glidePerf.drawCalls / f,
+                    s_glidePerf.swapNs / 1e6 / f, double(s_glidePerf.uploads) / f, s_glidePerf.uploadNs / 1e6 / f);
+        const Uint64 lastSwap = s_glidePerf.lastSwap;
+        s_glidePerf = GlidePerf();
+        s_glidePerf.windowStart = perfEnd;
+        s_glidePerf.lastSwap = lastSwap;
+    }
 }
 
 x86::reg32 GlideRenderer::textureMemStart(x86::reg32 tmu)
@@ -525,6 +562,7 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
                                    x86::reg32 largeMipmap, x86::reg32 smallMipmap, TextureFormat format)
 {
     NFS2_ASSERT(tmu == 0);
+    const Uint64 uploadStart = SDL_GetTicksNS();
     x86::reg32 largeMipmapSize = 256 >> largeMipmap;
     x86::reg32 smallMipmapSize = 256 >> smallMipmap;
 
@@ -598,6 +636,8 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
     }
     free(textureData);
     m_renderer->clearCurrent();
+    ++s_glidePerf.uploads;
+    s_glidePerf.uploadNs += SDL_GetTicksNS() - uploadStart;
 }
 
 void GlideRenderer::setClip(int minX, int minY, int maxX, int maxY)
