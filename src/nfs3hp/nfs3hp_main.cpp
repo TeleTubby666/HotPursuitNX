@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
     (void)argc;
     (void)argv;
     setenv("NVK_I_WANT_A_BROKEN_VULKAN_DRIVER", "1", 1);
-    win32::initLog("sdmc:/switch/nfs3hp/log.txt");
+    win32::initLog("sdmc:/switch/nfs3hp/nfs3hp.log");
     win32::logPrintf("NFS3 HP starting (Switch)");
     win32::logImageBase();
     win32::File::setDataDirectory("sdmc:/switch/nfs3hp/");

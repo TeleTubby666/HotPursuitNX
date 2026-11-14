@@ -170,7 +170,10 @@ public:
         if (it == m_methods.end())
         {
             /* the guest called a function pointer we know nothing about: skip the call instead of crashing */
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "call to unknown address 0x%08x ignored (esp=0x%08x)", (unsigned) address, (unsigned) cpu.esp);
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "call to unknown address 0x%08x ignored (esp=0x%08x, returns to 0x%08x, stack 0x%08x 0x%08x 0x%08x)",
+                         (unsigned) address, (unsigned) cpu.esp, (unsigned) getMemory<x86::reg32>(cpu.esp),
+                         (unsigned) getMemory<x86::reg32>(cpu.esp + 4), (unsigned) getMemory<x86::reg32>(cpu.esp + 8),
+                         (unsigned) getMemory<x86::reg32>(cpu.esp + 12));
             cpu.eax = 0;
             cpu.esp += 4; /* drop the return address pushed by the caller */
             return;
