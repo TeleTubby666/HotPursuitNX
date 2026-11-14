@@ -507,7 +507,16 @@ static x86::reg32 grSstWinOpen(WinApplication* app, x86::CPU& cpu, HWND hWnd,
         height = 480;
         break;
     }
-    s_renderer = new Renderer(app, dynamic_cast<Window*>(app->getResource(hWnd)));
+    /* NFS II SE (3Dfx) passes hWnd 0: Glide then uses the application's window */
+    Window* window = hWnd ? dynamic_cast<Window*>(app->getResource(hWnd)) : nullptr;
+    if (!window)
+        window = Window::getLatest();
+    if (!window)
+    {
+        window = new Window("Need for Speed", 0, 0, width, height);
+        app->allocateResource(window);
+    }
+    s_renderer = new Renderer(app, window);
     s_renderer->setVideoMode(width, height, 16);
     app->allocateResource(s_renderer);
     s_glideRenderer = new GlideRenderer(s_renderer);

@@ -44,6 +44,8 @@ public:
     static x86::reg32 getMessage(const x86::CPU& cpu, MSG* result, Window* window, x86::reg32 filterMin, x86::reg32 msgMax);
     static x86::reg32 postMessage(x86::reg32 hWnd, x86::reg32 message, x86::reg32 wParam, x86::reg32 lParam);
     static x86::reg32 getMessageHandler();
+    /* the most recently created window (Glide games may open the display with hWnd 0) */
+    static Window* getLatest();
 
 private:
     SDL_Window*     m_window;

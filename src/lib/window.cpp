@@ -305,9 +305,17 @@ WindowClass::~WindowClass()
 {
 }
 
+static Window* s_latestWindow = nullptr;
+
+Window* Window::getLatest()
+{
+    return s_latestWindow;
+}
+
 Window::Window(const char *title, int /*x*/, int /*y*/, int w, int h)
     :   m_window(nullptr)
 {
+    s_latestWindow = this;
 #ifdef __SWITCH__
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -329,6 +337,8 @@ Window::Window(const char *title, int /*x*/, int /*y*/, int w, int h)
 
 Window::~Window()
 {
+    if (s_latestWindow == this)
+        s_latestWindow = nullptr;
 }
 
 x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, x86::reg32 filterMin, x86::reg32 msgMax)
