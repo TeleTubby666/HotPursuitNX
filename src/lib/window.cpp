@@ -564,9 +564,16 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                         {
                             const int b = event.jbutton.button;
                             if (b == 10 && event.jbutton.down && g_inRace)
+                            {
                                 g_paused = true;
+                                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "pause menu: opened with Plus");
+                            }
                             if (b != 10 && !(g_paused && (b == 0 || (b >= 12 && b <= 15))))
+                            {
+                                if (g_paused && event.jbutton.down)
+                                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "pause menu: pad button %d is no menu key", b);
                                 break;
+                            }
                         }
                         if (event.jbutton.which == 0)
                         {
@@ -791,7 +798,37 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                     break;
                 case SDL_EVENT_JOYSTICK_AXIS_MOTION:
                     if (padJoyOnly())
+                    {
+#ifdef __SWITCH__
+                        /*
+                         * The pause menu of a race only reacts to keys, and it is the left stick one reaches for
+                         * first: while the menu is open the left stick presses the arrow keys as well (the game
+                         * keeps getting the stick as joystick axes). Leaving the menu releases the keys.
+                         */
+                        if (event.jaxis.which == 0 && event.jaxis.axis <= 1)
+                        {
+                            static bool s_pLeft, s_pRight, s_pUp, s_pDown, s_pLogged;
+                            const bool on = g_paused;
+                            const int v = event.jaxis.value;
+                            if (event.jaxis.axis == 0)
+                            {
+                                stickKey(s_pLeft, on && v < -20000, SDLK_LEFT, SDL_SCANCODE_LEFT, false);
+                                stickKey(s_pRight, on && v > 20000, SDLK_RIGHT, SDL_SCANCODE_RIGHT, false);
+                            }
+                            else
+                            {
+                                stickKey(s_pUp, on && v < -20000, SDLK_UP, SDL_SCANCODE_UP, false);
+                                stickKey(s_pDown, on && v > 20000, SDLK_DOWN, SDL_SCANCODE_DOWN, false);
+                            }
+                            if (on && !s_pLogged && (s_pLeft || s_pRight || s_pUp || s_pDown))
+                            {
+                                s_pLogged = true;
+                                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "pause menu: left stick presses arrow keys");
+                            }
+                        }
+#endif
                         break;
+                    }
                     if (event.jaxis.which == 0)
                     {
 #ifdef __SWITCH__
