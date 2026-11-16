@@ -1,0 +1,80 @@
+name: Switch build
+
+# Builds the Switch NROs for the test branches and keeps them as a run artefact.
+# nxvk-gl (Mesa/NVK/Zink for the Switch) takes long to build, so its package is cached.
+
+on:
+  push:
+    branches:
+      - switch-controls
+      - switch-controls-3dfx
+  workflow_dispatch:
+
+env:
+  NXVK_REPO: https://github.com/PalindromicBreadLoaf/nxvk
+  NXVK_COMMIT: a5841f80f80567a15a27653ded53a50d565d28c9
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore nxvk-gl package
+        id: nxvk
+        uses: actions/cache@v4
+        with:
+          path: .ci/nxvk-pkg
+          key: nxvk-gl-${{ env.NXVK_COMMIT }}-v1
+
+      - name: Build nxvk-gl
+        if: steps.nxvk.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p .ci/nxvk-src .ci/nxvk-pkg/include
+          cd .ci/nxvk-src
+          git init -q
+          git fetch -q --depth 1 "$NXVK_REPO" "$NXVK_COMMIT"
+          git checkout -q FETCH_HEAD
+          docker build -t nxvk switch/docker
+          docker run --rm -v "$PWD:/work" -w /work nxvk bash -c '
+            set -e
+            git config --global --add safe.directory "*"
+            make gl CONTAINER='
+          cp -r switch/build/pkg/lib ../nxvk-pkg/
+          cp -r include/vulkan include/vk_video ../nxvk-pkg/include/
+          ls -l ../nxvk-pkg/lib
+
+      - name: Build NROs
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/src" -w /src docker.io/devkitpro/devkita64 bash -c '
+            set -e
+            if ! command -v cmake >/dev/null || ! command -v pkg-config >/dev/null || ! command -v git >/dev/null || ! command -v make >/dev/null; then
+              apt-get update
+              apt-get install -y --no-install-recommends cmake pkg-config git make ca-certificates
+            fi
+            git config --global --add safe.directory "*"
+            P=/opt/devkitpro/portlibs/switch
+            install -d $P/lib/pkgconfig $P/include
+            cp .ci/nxvk-pkg/lib/*.a $P/lib/
+            cp .ci/nxvk-pkg/lib/pkgconfig/*.pc $P/lib/pkgconfig/
+            cp -r .ci/nxvk-pkg/include/. $P/include/
+            [ -e $P/lib/libdl.a ] || /opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar rcs $P/lib/libdl.a
+            cmake -B build-switch \
+                -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-switch.cmake \
+                -DCMAKE_BUILD_TYPE=Release
+            cmake --build build-switch -j$(nproc)
+          '
+          ls -l build-switch/*.nro build-switch/*.elf
+
+      - name: Upload NROs
+        uses: actions/upload-artifact@v4
+        with:
+          name: hotpursuitnx-${{ github.sha }}
+          path: |
+            build-switch/*.nro
+            build-switch/*.elf
+          if-no-files-found: error
+          retention-days: 30
