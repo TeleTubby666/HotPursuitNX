@@ -67,6 +67,7 @@ static bool padMouseAllowed()
 #endif
 }
 bool g_inRace        = false;
+bool g_paused        = false;
 bool g_capturingKey  = false;
 
 static struct CustomEventRegistrar
@@ -553,9 +554,20 @@ x86::reg32 Window::getMessage(const x86::CPU& cpu, MSG* result, Window *window, 
                 case SDL_EVENT_JOYSTICK_BUTTON_DOWN:
                 case SDL_EVENT_JOYSTICK_BUTTON_UP:
                     {
-                        /* joystick-only mode: only Plus still acts as Escape (pause menu) */
-                        if (padJoyOnly() && event.jbutton.button != 10)
-                            break;
+                        /*
+                         * joystick-only mode: Plus still acts as Escape (pause menu). The pause menu only
+                         * reacts to keys, so while it is open A (Enter) and the D-pad (arrows) work as keys too.
+                         * B stays the handbrake and the sticks stay steering, so a pause menu that is
+                         * wrongly thought to be open (until the race ends) does no harm.
+                         */
+                        if (padJoyOnly())
+                        {
+                            const int b = event.jbutton.button;
+                            if (b == 10 && event.jbutton.down && g_inRace)
+                                g_paused = true;
+                            if (b != 10 && !(g_paused && (b == 0 || (b >= 12 && b <= 15))))
+                                break;
+                        }
                         if (event.jbutton.which == 0)
                         {
 #ifdef __SWITCH__

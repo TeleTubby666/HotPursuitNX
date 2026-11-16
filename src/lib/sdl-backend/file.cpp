@@ -318,12 +318,15 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
         /* setup.mnu: the front end starts; postgame.mnu: back in the menus after a race
            (the menus are not reloaded then, see the log of a second race) */
         if (lower.find("/menus/setup.mnu") != std::string::npos || lower.find("/menus/postgame.mnu") != std::string::npos)
-            g_inRace = false;
+            g_inRace = false, g_paused = false;
         /* NFS2: a race builds its track in tmptrk/main.trk, the front end loads its text file again */
         else if (lower.find("/tmptrk/main.trk") != std::string::npos)
-            g_inRace = true;
+            g_inRace = true, g_paused = false;
         else if (lower.find("/fedata/pc/text/text.") != std::string::npos)
-            g_inRace = false;
+            g_inRace = false, g_paused = false;
+        /* NFS2: the pause menu of a race loads its picture (pausege.qfs, ...) */
+        else if (g_inRace && lower.find("/gamedata/pause/") != std::string::npos)
+            g_paused = true;
         else if (lower.find("/tracks/") != std::string::npos && lower.size() > 4 && lower.compare(lower.size() - 4, 4, ".frd") == 0)
             g_inRace = true;
 #endif

@@ -11,6 +11,7 @@ namespace win32
 extern bool g_isNFS3;
 /* true from the moment a track is loaded until the front end is loaded again (see file.cpp) */
 extern bool g_inRace;
+extern bool g_paused; /* NFS2: the pause menu of a race is open (it only reacts to keys) */
 /* true while a row of the controls menu waits for the key to assign (set by the game code) */
 extern bool g_capturingKey;
 /* NFS2 on the Switch: with sdmc:/switch/nfs2se/joyonly.txt the pad is only a DirectInput joystick (no keys) */
