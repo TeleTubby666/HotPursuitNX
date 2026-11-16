@@ -39,6 +39,13 @@ folders should be beside the nro in that folder).
 software renderer (`nfs2se.nro`). It uses the same game data: place it next to
 `nfs2se.nro` in `sdmc:/switch/nfs2se/`.
 
+`nfs2sea.nro` is built from the `nfs2sea.exe` of EA's update of November 1997
+(`NFS2SE_U.ZIP`: TCP network protocol, force feedback fix), not from the one on the CD.
+That version reads its texts from the game's own folder: copy the `text.*` files of the
+update (`text.eng`, `text.ger`, ...) to `sdmc:/switch/nfs2se/`, next to the NRO. Without
+them it does not start. The files in `fedata/pc/text/` stay as they are; `nfs2se.nro`
+uses those.
+
 ## Controls
 
 The Switch controls are mapped to the original keyboard commands used by both games.

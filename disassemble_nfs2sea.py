@@ -4,28 +4,31 @@ from disasm import disassembler, dll
 
 # NFS2SEA.EXE is the 3Dfx (Glide) build of Need for Speed II SE. It shares most code with NFS2SEN.EXE but is
 # linked differently, so the addresses below are its own.
+#
+# The executable is the one of EA's update of 1997-11-27 (NFS2SE_U.ZIP: TCP network play, force feedback fix),
+# not the one of the CD (1997-09-23). It needs the text.* files of that update.
 
 # data inside the code section, given at the address where the linear sweep lands on it
 DATA_SEGMENTS = [
                  (0x401004, 0x401080),
-                 (0x405d30, 0x405dc4),
-                 (0x409e00, 0x40a0a0),
-                 (0x4119a0, 0x411be0),
-                 (0x4131b0, 0x4131d4),
-                 (0x414bb0, 0x414d00),
-                 (0x419f50, 0x419fe0),
-                 (0x41b7a0, 0x41b8e0),
-                 (0x423340, 0x423380),
-                 (0x42e240, 0x42e310),
-                 (0x436800, 0x4368d0),
-                 (0x440430, 0x440520),
-                 (0x4734c0, 0x4734e0),
-                 (0x474550, 0x474590),
-                 (0x475a80, 0x475ad0),
-                 (0x477900, 0x4779c0),
-                 (0x47b800, 0x47b8b0),
-                 (0x49aa15, 0x49aa84),
-                 (0x4c2bb0, 0x4c2f18)
+                 (0x405d40, 0x405dd4),
+                 (0x409e10, 0x40a0b0),
+                 (0x411990, 0x411bd0),
+                 (0x4131a0, 0x4131c4),
+                 (0x414ba0, 0x414cf0),
+                 (0x419f40, 0x419fd0),
+                 (0x41b790, 0x41b8d0),
+                 (0x424e20, 0x424e60),
+                 (0x42fd30, 0x42fe00),
+                 (0x4382f0, 0x4383c0),
+                 (0x441f20, 0x442010),
+                 (0x475010, 0x475030),
+                 (0x4760a0, 0x4760e0),
+                 (0x4775d0, 0x477620),
+                 (0x479450, 0x479510),
+                 (0x47d350, 0x47d400),
+                 (0x49faa5, 0x49fb14),
+                 (0x4c4b50, 0x4c4eb8)
     ]
 
 
@@ -34,12 +37,12 @@ KNOWN_SUBROUTINES = [
 
 
 # jumps into the middle of an instruction (the "66 a9" prefix trick that hides a "mov edi, ecx")
-SPLIT_INSTRUCTIONS = [0x4981c2, 0x4981f7, 0x4a2af0]
+SPLIT_INSTRUCTIONS = [0x49d252, 0x49d287, 0x4a6f24]
 
 
 THREAD_ROUTINES = []
 # busy-wait loops on the timer: the same four loops as in NFS2SEN.EXE
-THREAD_SEGMENTS = [0x482335, 0x4862ed, 0x4228f6, 0x48186e]
+THREAD_SEGMENTS = [0x483ec5, 0x487e7d, 0x4243b6, 0x4833fe]
 
 FUNCTION_NAMES = {
 }
