@@ -250,8 +250,34 @@ void WinApplication::terminate()
 }
 
 
+static std::vector<x86::reg32> s_traceWatch;
+static std::vector<x86::reg32> s_traceWatchLast;
+static std::mutex s_traceWatchLock;
+
+/* diagnosis: log every change of a watched guest variable, with the place it was noticed */
+static void checkTraceWatch(WinApplication* app, const char* where, unsigned what)
+{
+    if (s_traceWatch.empty())
+        return;
+    std::lock_guard<std::mutex> guard(s_traceWatchLock);
+    if (s_traceWatchLast.size() != s_traceWatch.size())
+        s_traceWatchLast.assign(s_traceWatch.size(), 0);
+    for (size_t i = 0; i < s_traceWatch.size(); ++i)
+    {
+        x86::reg32 v = app->getMemory<x86::reg32>(s_traceWatch[i]);
+        if (v != s_traceWatchLast[i])
+        {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "watch: [%x] %x -> %x, noticed at %s %x",
+                        (unsigned) s_traceWatch[i], (unsigned) s_traceWatchLast[i], (unsigned) v, where, what);
+            s_traceWatchLast[i] = v;
+        }
+    }
+}
+
 void WinApplication::traceCall(const win32::Method& m, x86::CPU& cpu)
 {
+    if (SDL_GetTicks() < 120000)
+        checkTraceWatch(this, m.name.c_str(), (unsigned) getMemory<x86::reg32>(cpu.esp));
     static std::atomic<int> s_budget(4000);
     if (s_budget.load(std::memory_order_relaxed) <= 0)
         return;
@@ -275,7 +301,6 @@ void WinApplication::traceCall(const win32::Method& m, x86::CPU& cpu)
                 (unsigned) getMemory<x86::reg32>(cpu.esp + 12), (unsigned) getMemory<x86::reg32>(cpu.esp + 16), (unsigned) cpu.eax);
 }
 
-static std::vector<x86::reg32> s_traceWatch;
 
 void WinApplication::setTraceWatch(const std::vector<x86::reg32>& addresses)
 {
@@ -284,6 +309,7 @@ void WinApplication::setTraceWatch(const std::vector<x86::reg32>& addresses)
 
 void WinApplication::traceEntry(x86::reg32 address, x86::CPU& cpu)
 {
+    checkTraceWatch(this, "enter", (unsigned) address);
     static std::atomic<int> s_budget(400);
     if (s_budget.load(std::memory_order_relaxed) <= 0)
         return;

@@ -15,9 +15,11 @@ HRESULT DirectInputCreateA(WinApplication* app, x86::CPU& cpu,
     NFS2_USE(hinst);
     NFS2_USE(dwVersion);
     NFS2_ASSERT(punkOuter == nullptr);
-    *lplpDirectInput = Packed<IDirectInput2>(com::ComAlloc(app));
+    const auto object = com::ComAlloc(app);
+    *lplpDirectInput = Packed<IDirectInput2>(object);
     IDirectInput2* dinput = &app->getMemory<IDirectInput2>(*lplpDirectInput);
     new (dinput) IDirectInput2();
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "DirectInputCreateA: object 0x%08x, returns 0", (unsigned) object);
     return 0;
 }
 
