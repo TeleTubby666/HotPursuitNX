@@ -47,8 +47,13 @@ THREAD_SEGMENTS = [0x483ec5, 0x487e7d, 0x4243b6, 0x4833fe]
 FUNCTION_NAMES = {
 }
 
+# diagnosis: functions whose entry is logged ("enter:" lines), see WinApplication::traceEntry. They decide whether the
+# game creates its DirectInput mouse (the start-up crash calls the mouse that was never created).
+TRACE_FUNCTIONS = [0x4301a0, 0x430200, 0x49cfb0, 0x49d020, 0x4ac6b4, 0x428c60, 0x4ac10c, 0x423080, 0x422380, 0x422530,
+                   0x421980, 0x428e20, 0x4a0ce4, 0x408020, 0x422060, 0x430a80, 0x49ca78]
+
 if __name__ == '__main__':
     application = disassembler.disassemble('nfs2sea', 'nfs2sea/nfs2sea.exe', DATA_SEGMENTS,
                                            KNOWN_SUBROUTINES, SPLIT_INSTRUCTIONS, THREAD_ROUTINES)
     eacsnd = disassembler.disassemble('eacsnd', 'nfs2sea/eacsnd.dll', type=dll.DLL, rebase_after=application)
-    application.write(THREAD_SEGMENTS, dlls=[eacsnd], function_names=FUNCTION_NAMES)
+    application.write(THREAD_SEGMENTS, dlls=[eacsnd], function_names=FUNCTION_NAMES, trace_functions=TRACE_FUNCTIONS)

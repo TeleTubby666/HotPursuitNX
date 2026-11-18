@@ -186,6 +186,11 @@ public:
     /* diagnosis: the first calls of every API function and callback, with the thread and the first arguments */
     void traceCall(const win32::Method& m, x86::CPU& cpu);
 
+    /* diagnosis: entry of a guest function the generator was asked to trace (trace_functions), with the
+       registers, the return address and the guest variables given with setTraceWatch */
+    void traceEntry(x86::reg32 address, x86::CPU& cpu);
+    static void setTraceWatch(const std::vector<x86::reg32>& addresses);
+
 protected:
     WinApplication(const char* appName, x86::reg32 baseAddress, const std::vector<Section>& sections);
     ~WinApplication();

@@ -9211,6 +9211,7 @@ void Application::sub_49ca78(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x0049ca78, cpu);
     // 0049ca78  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
@@ -11324,6 +11325,7 @@ void Application::sub_49cfb0(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x0049cfb0, cpu);
     // 0049cfb0  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
@@ -11414,6 +11416,7 @@ void Application::sub_49d020(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x0049d020, cpu);
     // 0049d020  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;

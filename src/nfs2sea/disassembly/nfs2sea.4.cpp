@@ -17598,6 +17598,7 @@ void Application::sub_428c60(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x00428c60, cpu);
     // 00428c60  51                     -push ecx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ecx;
     cpu.esp -= 4;
@@ -18025,6 +18026,7 @@ void Application::sub_428e20(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x00428e20, cpu);
     // 00428e20  833d5cab4d0000         +cmp dword ptr [0x4dab5c], 0
     {
         x86::reg32 tmp1 = app->getMemory<x86::reg32>(x86::reg32(5090140) /* 0x4dab5c */);

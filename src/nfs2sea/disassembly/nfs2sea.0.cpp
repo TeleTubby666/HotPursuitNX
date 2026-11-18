@@ -28244,6 +28244,7 @@ void Application::sub_408020(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x00408020, cpu);
     // 00408020  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;

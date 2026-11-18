@@ -274,4 +274,39 @@ void WinApplication::traceCall(const win32::Method& m, x86::CPU& cpu)
                 m.name.c_str(), (unsigned) getMemory<x86::reg32>(cpu.esp + 4), (unsigned) getMemory<x86::reg32>(cpu.esp + 8),
                 (unsigned) getMemory<x86::reg32>(cpu.esp + 12), (unsigned) getMemory<x86::reg32>(cpu.esp + 16), (unsigned) cpu.eax);
 }
+
+static std::vector<x86::reg32> s_traceWatch;
+
+void WinApplication::setTraceWatch(const std::vector<x86::reg32>& addresses)
+{
+    s_traceWatch = addresses;
+}
+
+void WinApplication::traceEntry(x86::reg32 address, x86::CPU& cpu)
+{
+    static std::atomic<int> s_budget(400);
+    if (s_budget.load(std::memory_order_relaxed) <= 0)
+        return;
+    static std::mutex s_lock;
+    static std::unordered_map<x86::reg32, int> s_counts;
+    {
+        std::lock_guard<std::mutex> guard(s_lock);
+        int& n = s_counts[address];
+        if (n >= 6)
+            return;
+        ++n;
+    }
+    --s_budget;
+    char watch[256] = "";
+    size_t len = 0;
+    for (x86::reg32 w : s_traceWatch)
+    {
+        if (len + 24 >= sizeof(watch))
+            break;
+        len += SDL_snprintf(watch + len, sizeof(watch) - len, " [%x]=%x", (unsigned) w, (unsigned) getMemory<x86::reg32>(w));
+    }
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "enter: %08x from %08x eax=%x edx=%x ebx=%x ecx=%x%s",
+                (unsigned) address, (unsigned) getMemory<x86::reg32>(cpu.esp), (unsigned) cpu.eax, (unsigned) cpu.edx,
+                (unsigned) cpu.ebx, (unsigned) cpu.ecx, watch);
+}
 }

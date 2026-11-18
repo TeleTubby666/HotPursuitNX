@@ -1386,6 +1386,7 @@ void Application::sub_4a0ce4(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
+  app->traceEntry(0x004a0ce4, cpu);
     // 004a0ce4  52                     -push edx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.edx;
     cpu.esp -= 4;
