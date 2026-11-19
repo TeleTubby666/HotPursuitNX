@@ -39,12 +39,12 @@ folders should be beside the nro in that folder).
 software renderer (`nfs2se.nro`). It uses the same game data: place it next to
 `nfs2se.nro` in `sdmc:/switch/nfs2se/`.
 
-`nfs2sea.nro` is built from the `nfs2sea.exe` of EA's update of November 1997
-(`NFS2SE_U.ZIP`: TCP network protocol, force feedback fix), not from the one on the CD.
-That version reads its texts from the game's own folder: copy the `text.*` files of the
-update (`text.eng`, `text.ger`, ...) to `sdmc:/switch/nfs2se/`, next to the NRO. Without
-them it does not start. The files in `fedata/pc/text/` stay as they are; `nfs2se.nro`
-uses those.
+`nfs2se.nro` and `nfs2sea.nro` are built from `nfs2sen.exe` and `nfs2sea.exe` of EA's
+update of November 1997 (`NFS2SE_U.ZIP`: TCP network protocol, force feedback fix), not
+from the ones on the CD. The update comes with new language files (`text.eng`,
+`text.ger`, ...): copy them to `sdmc:/switch/nfs2se/fedata/pc/text/` and replace the ones
+from the CD there. The update exes look for them in the game folder; both NROs read them
+from `fedata/pc/text/` instead (files next to the NRO still work if that folder has none).
 
 ## Controls
 
