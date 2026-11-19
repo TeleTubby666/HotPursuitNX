@@ -266,25 +266,6 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
     //NFS2_ASSERT((flags & FILE_FLAG_OVERLAPPED) == 0);
     for (std::string::iterator it = m_filename.begin(); it != m_filename.end(); ++it)
         if (*it == '\\') *it = '/';
-    /* The EA update of NFS2SE (1997-11-27) reads its language files (text.eng, text.ger, ...)
-       from the game directory instead of fedata/pc/text/ like the CD version. Keep them
-       where they belong: read text.* from fedata/pc/text/ if it is there. */
-    {
-        std::string root(s_dataDirectory);
-        std::transform(root.begin(), root.end(), root.begin(), ::tolower);
-        for (char& c : root) if (c == '\\') c = '/';
-        if (m_filename.size() == root.size() + 8 && m_filename.compare(0, root.size(), root) == 0
-            && m_filename.compare(root.size(), 5, "text.") == 0)
-        {
-            std::string redirected = resolvePathCaseInsensitive(root + "fedata/pc/text/" + m_filename.substr(root.size()));
-            struct stat st;
-            if (stat(redirected.c_str(), &st) == 0)
-            {
-                SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "text file %s read from %s", m_filename.c_str(), redirected.c_str());
-                m_filename = redirected;
-            }
-        }
-    }
     m_filename = resolvePathCaseInsensitive(m_filename);
     int openFlags = O_BINARY;
     switch(mode)

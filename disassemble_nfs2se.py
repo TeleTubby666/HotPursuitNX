@@ -3,47 +3,45 @@ sys.path.append('disasm')
 from disasm import disassembler, dll
 
 
-# addresses of the EA update exe (nfs2sen.ex_ from NFS2SE_U.ZIP, 1997-11-27)
 DATA_SEGMENTS = [(0x401004, 0x401080),
-                 (0x406090, 0x406100),
-                 (0x40a160, 0x40a400),
-                 (0x40ec80, 0x40ec90),
-                 (0x411080, 0x411090),
-                 (0x4119f0, 0x411c20),
-                 (0x413220, 0x413230),
-                 (0x414c20, 0x414d10),
-                 (0x41a2d0, 0x41a360),
-                 (0x41baf0, 0x41bc30),
-                 (0x421a74, 0x421a90),
-                 (0x424ef0, 0x424f30),
-                 (0x426f40, 0x427010),
-                 (0x42c560, 0x42c570),
-                 (0x430b70, 0x430c60),
-                 (0x439740, 0x4398a0),
-                 (0x43d550, 0x43d570),
-                 (0x449d20, 0x449d40),
-                 (0x44d0a0, 0x44d100),
-                 (0x44d780, 0x44d790),
-                 (0x451e00, 0x451e60),
-                 (0x461ae0, 0x461b00),
-                 (0x462a40, 0x462a80),
-                 (0x463d50, 0x463e00),
-                 (0x465d80, 0x465da0),
-                 (0x467a50, 0x467ac0),
-                 (0x46b200, 0x46b2b0),
-                 (0x46ba20, 0x46ba60),
-                 (0x46fce0, 0x46fcf0),
-                 (0x472a60, 0x472a70),
-                 (0x4737d0, 0x473880),
-                 (0x477ef0, 0x477ef4),
-                 (0x4859db, 0x4859dc),
-                 (0x490435, 0x4904a4),
-                 (0x4a07c5, 0x4a07c6),
-                 (0x4a6bd1, 0x4a6bd2),
-                 (0x4ab881, 0x4ab89f),
-                 (0x4b2084, 0x4b209a),
-                 (0x4b6630, 0x4b6998),
-                 (0x4b6db8, 0x4d6e00),
+                 (0x406080, 0x4060f0),
+                 (0x40a150, 0x40a3f0),
+                 (0x40ec60, 0x40ec70),
+                 (0x411070, 0x411080),
+                 (0x4119e0, 0x411c10),
+                 (0x413210, 0x413220),
+                 (0x414c10, 0x414d00),
+                 (0x41a2c0, 0x41a350),
+                 (0x41bae0, 0x41bc20),
+                 (0x420014, 0x420030),
+                 (0x4233e0, 0x423420),
+                 (0x425430, 0x425500),
+                 (0x42aa50, 0x42aa60),
+                 (0x42f060, 0x42f150),
+                 (0x437c30, 0x437d90),
+                 (0x43ba40, 0x43ba60),
+                 (0x448210, 0x448230),
+                 (0x44b590, 0x44b5f0),
+                 (0x44bc70, 0x44bc80),
+                 (0x4502d0, 0x450330),
+                 (0x45ff60, 0x45ff80),
+                 (0x460ec0, 0x460f00),
+                 (0x4621d0, 0x462280),
+                 (0x464200, 0x464220),
+                 (0x465ed0, 0x465f40),
+                 (0x469680, 0x469730),
+                 (0x469ea0, 0x469ee0),
+                 (0x46e120, 0x46e130),
+                 (0x470ea0, 0x470eb0),
+                 (0x470ea0, 0x470eb0),
+                 (0x471c10, 0x471cc0),
+                 (0x476330, 0x476334),
+                 (0x4808eb, 0x4808ec),
+                 (0x48b375, 0x48b3e4),
+                 (0x49c365, 0x49c366),
+                 (0x4a4c11, 0x4a4c12),
+                 (0x4b4670, 0x4b49d8),
+                 (0x4b4db6, 0x4d4e00),
     ]
 
 
@@ -51,20 +49,20 @@ KNOWN_SUBROUTINES = [
     ]
 
 
-SPLIT_INSTRUCTIONS = [0x491118, 0x49114d, 0x49a9ea]
+SPLIT_INSTRUCTIONS = [0x48c058, 0x48c08d, 0x49658a]
 
 
 #THREAD_ROUTINES = [0x477b48, 0x4865cc]
 #THREAD_SEGMENTS = [(0x485296, 0x4852b4)]
 THREAD_ROUTINES = []
-THREAD_SEGMENTS = [0x479c55, 0x47d79d, 0x4249a9, 0x478eae]
+THREAD_SEGMENTS = [0x478095, 0x47bbdd, 0x422ec9, 0x4772ee]
 
 FUNCTION_NAMES = {
-    0x4248b0: 'main_loop',
-    0x4a3458: 'bresenham_texture_sampler',
-    0x479e80: 'crt_exit',
-    0x4ab4e0: 'strdup',
-    0x49a013: 'malloc',
+    0x422dd0: 'main_loop',
+    0x4a1498: 'bresenham_texture_sampler',
+    0x4782c0: 'crt_exit',
+    0x4a9520: 'strdup',
+    0x495b53: 'malloc',
 }
 
 if __name__ == '__main__':

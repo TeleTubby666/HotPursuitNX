@@ -64,7 +64,8 @@ jobs:
             [ -e $P/lib/libdl.a ] || /opt/devkitpro/devkitA64/bin/aarch64-none-elf-ar rcs $P/lib/libdl.a
             cmake -B build-switch \
                 -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-switch.cmake \
-                -DCMAKE_BUILD_TYPE=Release
+                -DCMAKE_BUILD_TYPE=Release \
+                -DBUILD_NFS2SE=OFF
             cmake --build build-switch -j$(nproc)
           '
           ls -l build-switch/*.nro build-switch/*.elf
