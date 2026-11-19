@@ -3,13 +3,15 @@
 namespace win32
 {
     
-static const x86::reg32 s_atlasSlotCount = 2048;
+/* slot records (not texture memory): small textures split the atlas into many slots */
+static const x86::reg32 s_atlasSlotCount = 16384;
 static const x86::reg32 s_atlasLodCount = 9;
 
 GlideTMU::GlideTMU(x86::reg32 atlasSize)
     :   m_textureSlots(new GlTextureSlot*[s_atlasLodCount])
     ,   m_textureSlotPool(new GlTextureSlot[s_atlasSlotCount])
     ,   m_firstFreeTextureSlot(m_textureSlotPool)
+    ,   m_freeSlotCount(s_atlasSlotCount)
 {
     for (x86::reg32 i = 0; i < s_atlasLodCount; ++i)
     {
@@ -57,6 +59,7 @@ GlTextureSlot* GlideTMU::allocateTextureSlot()
     GlTextureSlot* result = m_firstFreeTextureSlot;
     NFS2_ASSERT(result);
     m_firstFreeTextureSlot = result->next;
+    --m_freeSlotCount;
     return result;
 }
 
@@ -64,6 +67,7 @@ void GlideTMU::freeTextureSlot(GlTextureSlot* slot)
 {
     slot->next = m_firstFreeTextureSlot;
     m_firstFreeTextureSlot = slot;
+    ++m_freeSlotCount;
 }
 
 void GlideTMU::breakdownTextureSlot(GlTextureSlot* slot)
@@ -100,6 +104,8 @@ GlTextureSlot* GlideTMU::reserveTextureSlot(x86::reg32 lod)
         for (x86::sreg32 parentLod = lod-1; parentLod >= 0; --parentLod)
         {
             GlTextureSlot* parent = m_textureSlots[parentLod];
+            if (parent && m_freeSlotCount < 3 * (lod - parentLod))
+                return nullptr; /* no slot records left: the caller frees textures and tries again */
             if (parent)
             {
                 m_textureSlots[parentLod] = parent->next;
