@@ -11,6 +11,7 @@ namespace win32
 
 class Renderer;
 class GlideTMU;
+struct GlTextureSlot;
 
 enum TextureFormat
 {
