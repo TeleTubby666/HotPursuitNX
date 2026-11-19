@@ -94,6 +94,10 @@ private:
     std::string m_filename;
     /* software NUL device: reads hit EOF, writes are discarded */
     bool m_null;
+    /* writes are collected and written in large blocks: the game copies files in 4 KB pieces, which takes many
+       seconds on the Switch SD card (race start: temp.mus) */
+    std::vector<char> m_writeBuffer;
+    void flushWrites();
 };
 
 }

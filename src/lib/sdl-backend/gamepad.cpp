@@ -19,6 +19,14 @@ static Gamepad* s_gp1;
 void Input::poll()
 {
     s_kbPoll = 3;
+    /* NFS II SE 3Dfx menus read the joystick about 1300 times per second, and every read updated the controllers
+       (a fifth of the menu time); the controllers only change once per millisecond-scale input frame anyway */
+    static SDL_AtomicU32 s_lastUpdate;
+    const Uint32 now = Uint32(SDL_GetTicks());
+    const Uint32 last = SDL_GetAtomicU32(&s_lastUpdate);
+    if (now - last < 4 && last != 0)
+        return;
+    SDL_SetAtomicU32(&s_lastUpdate, now ? now : 1);
     SDL_UpdateJoysticks();
 }
 

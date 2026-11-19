@@ -239,7 +239,7 @@ File::File(int file, const char* name)
 }
 
 File::File(const File& other)
-    :   m_file(other.m_null ? -1 : _open(other.m_filename.c_str(), O_RDONLY|O_BINARY, 0664))
+    :   m_file((const_cast<File&>(other).flushWrites(), other.m_null ? -1 : _open(other.m_filename.c_str(), O_RDONLY|O_BINARY, 0664)))
     ,   m_filename(other.m_filename)
     ,   m_null(other.m_null)
 {
@@ -333,8 +333,27 @@ File::File(const char* path, x86::reg32 mode, x86::reg32 flags, x86::reg32 creat
     }
 }
 
+void File::flushWrites()
+{
+    if (m_writeBuffer.empty() || m_file == -1)
+        return;
+    size_t done = 0;
+    while (done < m_writeBuffer.size())
+    {
+        const int n = ::_write(m_file, m_writeBuffer.data() + done, unsigned(m_writeBuffer.size() - done));
+        if (n <= 0)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "write to %s failed", m_filename.c_str());
+            break;
+        }
+        done += size_t(n);
+    }
+    m_writeBuffer.clear();
+}
+
 File::~File()
 {
+    flushWrites();
     if (m_file != -1)
     {
         _close(m_file);
@@ -346,6 +365,7 @@ x86::reg32 File::seek(x86::reg32 mode, x86::sreg32 offset)
 {
     if (m_null)
         return 0;
+    flushWrites();
     int seekMode = 0;
     switch(mode)
     {
@@ -375,6 +395,7 @@ x86::reg32 File::read(void* buffer, x86::reg32 max, x86::reg32* totalRead)
         *totalRead = 0;
         return 1;
     }
+    flushWrites();
     *totalRead = ::_read(m_file, buffer, max);
     return *totalRead != x86::reg32(-1); //*totalRead == max;
 }
@@ -387,14 +408,19 @@ x86::reg32 File::write(const void* buffer, x86::reg32 max, x86::reg32* totalWrit
         *totalWritten = max;
         return 1;
     }
-    *totalWritten = ::_write(m_file, buffer, max);
-    return *totalWritten == max;
+    const char* bytes = static_cast<const char*>(buffer);
+    m_writeBuffer.insert(m_writeBuffer.end(), bytes, bytes + max);
+    if (m_writeBuffer.size() >= 1024 * 1024)
+        flushWrites();
+    *totalWritten = max;
+    return 1;
 }
 
 x86::reg32 File::truncate()
 {
     if (m_null)
         return 1;
+    flushWrites();
     SDL_LogDebug(SDL_LOG_CATEGORY_APPLICATION, "Truncating file %s", m_filename.c_str());
     return _chsize(m_file, _lseek(m_file, 0, 1)) == 0;
 }
@@ -403,6 +429,7 @@ x86::reg32 File::size() const
 {
     if (m_null)
         return 0;
+    const_cast<File*>(this)->flushWrites();
     struct stat buffer;
     fstat(m_file, &buffer);
     return buffer.st_size;
