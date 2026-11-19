@@ -3458,9 +3458,8 @@ private:
     static void sub_4b1fb6(WinApplication* app, x86::CPU& cpu);
     static void sub_4b1fbf(WinApplication* app, x86::CPU& cpu);
     static void sub_4b2040(WinApplication* app, x86::CPU& cpu);
-    static void sub_4b2084(WinApplication* app, x86::CPU& cpu);
-    static void sub_4b22d6(WinApplication* app, x86::CPU& cpu);
     static void sub_4b209a(WinApplication* app, x86::CPU& cpu);
+    static void sub_4b22d6(WinApplication* app, x86::CPU& cpu);
     static void sub_4b236e(WinApplication* app, x86::CPU& cpu);
     static void sub_4b239b(WinApplication* app, x86::CPU& cpu);
     static void sub_4b2384(WinApplication* app, x86::CPU& cpu);

@@ -5,15 +5,6 @@ namespace nfs2se
 {
 
 /* align: skip  */
-void Application::sub_4b6a88(WinApplication* app, x86::CPU& cpu)
-{
-  NFS2_USE(cpu);
-  NFS2_USE(app);
-    // 004b6a88  ff250c754b00           -jmp dword ptr [0x4b750c]
-    return app->dynamic_call(app->getMemory<x86::reg32>(4945164), cpu);
-}
-
-/* align: skip  */
 void Application::sub_4b6a8e(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
@@ -902,6 +893,15 @@ void Application::sub_4b6cda(WinApplication* app, x86::CPU& cpu)
   NFS2_USE(app);
     // 004b6cda  ff2570754b00           -jmp dword ptr [0x4b7570]
     return app->dynamic_call(app->getMemory<x86::reg32>(4945264), cpu);
+}
+
+/* align: skip  */
+void Application::sub_4b6ce0(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    // 004b6ce0  ff25b8744b00           -jmp dword ptr [0x4b74b8]
+    return app->dynamic_call(app->getMemory<x86::reg32>(4945080), cpu);
 }
 
 }
