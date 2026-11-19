@@ -1,4 +1,5 @@
 #include <winapi/com.h>
+#include <mutex>
 #include <winapi/wrapper.h>
 #include <winapi/ddraw/idirectdraw2.h>
 #include <winapi/ddraw/idirectdrawpalette.h>
@@ -15,9 +16,18 @@ namespace win32 { namespace com
 
 static win32::MemMap* s_memory = nullptr;
 static x86::reg32 s_firstFreeBlock = 0;
+/* the game threads create COM objects concurrently (NFS2 SE 3Dfx: DirectInput on the main thread, DirectDraw on
+   the window thread) */
+static std::mutex s_comLock;
+static std::once_flag s_comInit;
+static bool initialiseComMemory(WinApplication* app);
 
 x86::reg32 ComAlloc(WinApplication* app)
 {
+    /* The memory used to be set up by DirectDrawCreate only. NFS2 SE 3Dfx creates DirectInput before DirectDraw,
+       got the object 0 and lost its mouse (crash on the first mouse read). */
+    InitialiseComMemory(app);
+    std::lock_guard<std::mutex> guard(s_comLock);
     x86::reg32 result = s_firstFreeBlock;
     x86::reg32* memory = &app->getMemory<x86::reg32>(result);
     s_firstFreeBlock = *memory;
@@ -32,6 +42,7 @@ x86::reg32 ComGetIndex(WinApplication* app, const IUnknown* pointer)
 
 void ComFree(WinApplication* app, IUnknown* pointer)
 {
+    std::lock_guard<std::mutex> guard(s_comLock);
     x86::reg32* memory = reinterpret_cast<x86::reg32*>(pointer);
     *memory = s_firstFreeBlock;
     x86::reg32 block = x86::reg32(reinterpret_cast<x86::reg8*>(memory) - &app->getMemory<const x86::reg8>(s_memory->getBlockStart()));
@@ -39,6 +50,12 @@ void ComFree(WinApplication* app, IUnknown* pointer)
 }
 
 bool InitialiseComMemory(WinApplication* app)
+{
+    std::call_once(s_comInit, [app]() { initialiseComMemory(app); });
+    return true;
+}
+
+static bool initialiseComMemory(WinApplication* app)
 {
     s_memory = new win32::MemMap(1024*1024*1);
     x86::reg32  blockOffset = 0;
