@@ -51,8 +51,6 @@ int main(int argc, char* argv[])
     win32::Gamepad::init();
     win32::g_isNFS3 = false;
     {
-        /* diagnosis: guest variables shown on every "enter:" line (mode set, cursor flag, DirectInput, mouse, memory manager, mode-set hook) */
-        win32::WinApplication::setTraceWatch({0x4dab5c, 0x4dab60, 0x4d4c44, 0x4d4c48, 0x4db1f8, 0x4dd7a0});
         nfs2sea::Application app(argv[0]);
         app.execute();
     }

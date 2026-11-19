@@ -1,6 +1,8 @@
 #ifndef LIB_GLIDERENDERER_H_
 #define LIB_GLIDERENDERER_H_
 
+#include <unordered_map>
+
 #include <lib/winapp.h>
 #include <winapi/types.h>
 
@@ -123,6 +125,8 @@ private:
     int                     m_chromakeyUniform;
     int                     m_fogColorUniform;
     GlideTMU*               m_tmus[2];
+    /* content of the texture last uploaded to each address: the game downloads the same textures again and again */
+    std::unordered_map<x86::reg32, uint64_t> m_textureHash;
 };
 
 }

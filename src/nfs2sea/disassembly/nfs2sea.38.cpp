@@ -5,6 +5,15 @@ namespace nfs2sea
 {
 
 /* align: skip  */
+void Application::sub_4c50c8(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    // 004c50c8  ff257c654c00           -jmp dword ptr [0x4c657c]
+    return app->dynamic_call(app->getMemory<x86::reg32>(5006716), cpu);
+}
+
+/* align: skip  */
 void Application::sub_4c50ce(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);

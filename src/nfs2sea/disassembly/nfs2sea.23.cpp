@@ -7973,6 +7973,38 @@ void Application::sub_49769c(WinApplication* app, x86::CPU& cpu)
     return;
 }
 
+/* align: skip  */
+void Application::sub_4976b4(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    goto L_entry_0x004976b4;
+    // 0049769c  31c0                   -xor eax, eax
+    cpu.eax ^= x86::reg32(x86::sreg32(cpu.eax));
+    // 0049769e  66a1eccf4d00           -mov ax, word ptr [0x4dcfec]
+    cpu.ax = app->getMemory<x86::reg16>(x86::reg32(5099500) /* 0x4dcfec */);
+    // 004976a4  50                     -push eax
+    app->getMemory<x86::reg32>(cpu.esp-4) = cpu.eax;
+    cpu.esp -= 4;
+    // 004976a5  6a00                   -push 0
+    app->getMemory<x86::reg32>(cpu.esp-4) = 0 /*0x0*/;
+    cpu.esp -= 4;
+    // 004976a7  8b15e8cf4d00           -mov edx, dword ptr [0x4dcfe8]
+    cpu.edx = app->getMemory<x86::reg32>(x86::reg32(5099496) /* 0x4dcfe8 */);
+    // 004976ad  52                     -push edx
+    app->getMemory<x86::reg32>(cpu.esp-4) = cpu.edx;
+    cpu.esp -= 4;
+    // 004976ae  ff150cee5600           -call dword ptr [0x56ee0c]
+    cpu.ip = app->getMemory<x86::reg32>(x86::reg32(5697036) /* 0x56ee0c */);
+    cpu.esp -= 4;
+    app->dynamic_call(cpu.ip, cpu);
+    if (cpu.terminate) return;
+L_entry_0x004976b4:
+    // 004976b4  c3                     -ret 
+    cpu.esp += 4;
+    return;
+}
+
 /* align: skip 0x8d 0x40 0x00 */
 void Application::sub_4976b8(WinApplication* app, x86::CPU& cpu)
 {
@@ -20765,34 +20797,6 @@ void Application::sub_49a94c(WinApplication* app, x86::CPU& cpu)
     cpu.esp += 4;
     // 0049a964  c20400                 -ret 4
     cpu.esp += 4+4 /*0x4*/;
-    return;
-}
-
-/* align: skip 0x90 */
-void Application::sub_49a968(WinApplication* app, x86::CPU& cpu)
-{
-  NFS2_USE(cpu);
-  NFS2_USE(app);
-    // 0049a968  51                     -push ecx
-    app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ecx;
-    cpu.esp -= 4;
-    // 0049a969  89d9                   -mov ecx, ebx
-    cpu.ecx = cpu.ebx;
-    // 0049a96b  89d3                   -mov ebx, edx
-    cpu.ebx = cpu.edx;
-    // 0049a96d  89c2                   -mov edx, eax
-    cpu.edx = cpu.eax;
-    // 0049a96f  89c8                   -mov eax, ecx
-    cpu.eax = cpu.ecx;
-    // 0049a971  e896ffffff             -call 0x49a90c
-    cpu.esp -= 4;
-    sub_49a90c(app, cpu);
-    if (cpu.terminate) return;
-    // 0049a976  59                     -pop ecx
-    cpu.ecx = app->getMemory<x86::reg32>(cpu.esp);
-    cpu.esp += 4;
-    // 0049a977  c3                     -ret 
-    cpu.esp += 4;
     return;
 }
 

@@ -33,6 +33,8 @@ DATA_SEGMENTS = [
 
 
 KNOWN_SUBROUTINES = [
+    # a bare "ret": the no-op entry of the game's Glide function table at 0x4dae90, called through it every frame
+    0x4976b4,
     ]
 
 
@@ -47,11 +49,8 @@ THREAD_SEGMENTS = [0x483ec5, 0x487e7d, 0x4243b6, 0x4833fe]
 FUNCTION_NAMES = {
 }
 
-# diagnosis: functions whose entry is logged ("enter:" lines), see WinApplication::traceEntry. They decide whether the
-# game creates its DirectInput mouse (the start-up crash calls the mouse that was never created).
-TRACE_FUNCTIONS = [0x4301a0, 0x430200, 0x49cfb0, 0x49d020, 0x4ac6b4, 0x428c60, 0x4ac10c, 0x423080, 0x422380, 0x422530,
-                   0x421980, 0x428e20, 0x4a0ce4, 0x408020, 0x422060, 0x430a80, 0x49ca78,
-                   0x47f010, 0x483c18, 0x480a10, 0x4642f0, 0x430780, 0x48550c, 0x408730, 0x421bd0, 0x421f10, 0x421b90, 0x421a50]
+# diagnosis: functions whose entry is logged ("enter:" lines), see WinApplication::traceEntry
+TRACE_FUNCTIONS = []
 
 if __name__ == '__main__':
     application = disassembler.disassemble('nfs2sea', 'nfs2sea/nfs2sea.exe', DATA_SEGMENTS,

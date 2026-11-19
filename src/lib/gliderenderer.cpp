@@ -377,7 +377,7 @@ namespace
     struct GlidePerf
     {
         Uint64 windowStart, lastSwap, swapNs, uploadNs, maxGapNs;
-        unsigned frames, triangles, drawCalls, uploads;
+        unsigned frames, triangles, drawCalls, uploads, skippedUploads;
     };
     GlidePerf s_glidePerf = {};
 }
@@ -487,9 +487,10 @@ void GlideRenderer::swap()
         const unsigned f = s_glidePerf.frames;
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                     "perf glide: %.1f frames/s, longest frame %.0f ms; per frame: %u triangles, %u draw calls, "
-                    "swap %.2f ms, %.1f texture uploads (%.2f ms)",
+                    "swap %.2f ms, %.1f texture uploads (%.2f ms), %.1f unchanged downloads skipped",
                     f / seconds, s_glidePerf.maxGapNs / 1e6, s_glidePerf.triangles / f, s_glidePerf.drawCalls / f,
-                    s_glidePerf.swapNs / 1e6 / f, double(s_glidePerf.uploads) / f, s_glidePerf.uploadNs / 1e6 / f);
+                    s_glidePerf.swapNs / 1e6 / f, double(s_glidePerf.uploads) / f, s_glidePerf.uploadNs / 1e6 / f,
+                    double(s_glidePerf.skippedUploads) / f);
         const Uint64 lastSwap = s_glidePerf.lastSwap;
         s_glidePerf = GlidePerf();
         s_glidePerf.windowStart = perfEnd;
@@ -566,9 +567,29 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
     x86::reg32 largeMipmapSize = 256 >> largeMipmap;
     x86::reg32 smallMipmapSize = 256 >> smallMipmap;
 
+    GlTextureSlot** info = m_tmus[tmu]->getTextureInfo(address);
+    {
+        /* Skip a download whose texture is already there: menus download the same textures into the same place
+           every frame (several hundred per frame in the NFS II SE 3Dfx menus, each one a GL upload). */
+        const size_t bytes = size_t(largeMipmapSize) * largeMipmapSize * (format == TF_ARGB_8888 ? 4 : 2);
+        uint64_t hash = 0xcbf29ce484222325ull ^ (uint64_t(format) << 8) ^ (uint64_t(largeMipmap) << 16);
+        const uint64_t* words = reinterpret_cast<const uint64_t*>(data);
+        size_t i = 0;
+        for (; i + 8 <= bytes; i += 8)
+            hash = (hash ^ words[i / 8]) * 0x100000001b3ull;
+        for (const x86::reg8* tail = reinterpret_cast<const x86::reg8*>(data); i < bytes; ++i)
+            hash = (hash ^ tail[i]) * 0x100000001b3ull;
+        std::unordered_map<x86::reg32, uint64_t>::iterator known = m_textureHash.find(address);
+        if (*info && (*info)->lod == largeMipmap && known != m_textureHash.end() && known->second == hash)
+        {
+            ++s_glidePerf.skippedUploads;
+            return;
+        }
+        m_textureHash[address] = hash;
+    }
+
     m_renderer->setCurrent();
     glBindTexture(GL_TEXTURE_2D, m_atlas);
-    GlTextureSlot** info = m_tmus[tmu]->getTextureInfo(address);
     if (*info)
     {
         m_tmus[tmu]->returnTextureSlot(*info);

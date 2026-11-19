@@ -5,6 +5,36 @@ namespace nfs2sea
 {
 
 /* align: skip  */
+void Application::sub_4b9384(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    // 004b9384  89c3                   -mov ebx, eax
+    cpu.ebx = cpu.eax;
+    // 004b9386  d1e8                   -shr eax, 1
+    cpu.eax >>= 1 /*0x1*/ % 32;
+    // 004b9388  81e3fcfcfcfc           -and ebx, 0xfcfcfcfc
+    cpu.ebx &= x86::reg32(x86::sreg32(4244438268 /*0xfcfcfcfc*/));
+    // 004b938e  c1eb02                 -shr ebx, 2
+    cpu.ebx >>= 2 /*0x2*/ % 32;
+    // 004b9391  257f7f7f7f             -and eax, 0x7f7f7f7f
+    cpu.eax &= x86::reg32(x86::sreg32(2139062143 /*0x7f7f7f7f*/));
+    // 004b9396  01d8                   -add eax, ebx
+    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
+    // 004b9398  8b1c0e                 -mov ebx, dword ptr [esi + ecx]
+    cpu.ebx = app->getMemory<x86::reg32>(cpu.esi + cpu.ecx * 1);
+    // 004b939b  c1eb02                 -shr ebx, 2
+    cpu.ebx >>= 2 /*0x2*/ % 32;
+    // 004b939e  81e33f3f3f3f           -and ebx, 0x3f3f3f3f
+    cpu.ebx &= x86::reg32(x86::sreg32(1061109567 /*0x3f3f3f3f*/));
+    // 004b93a4  01d8                   -add eax, ebx
+    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
+    // 004b93a6  c3                     -ret 
+    cpu.esp += 4;
+    return;
+}
+
+/* align: skip  */
 void Application::sub_4b93a7(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
@@ -4220,62 +4250,6 @@ void Application::sub_4baa94(WinApplication* app, x86::CPU& cpu)
     // 004baae6  01d8                   -add eax, ebx
     (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
     // 004baae8  c3                     -ret 
-    cpu.esp += 4;
-    return;
-}
-
-/* align: skip  */
-void Application::sub_4baae9(WinApplication* app, x86::CPU& cpu)
-{
-  NFS2_USE(cpu);
-  NFS2_USE(app);
-    // 004baae9  31c0                   -xor eax, eax
-    cpu.eax ^= x86::reg32(x86::sreg32(cpu.eax));
-    // 004baaeb  8b5e01                 -mov ebx, dword ptr [esi + 1]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.esi + x86::reg32(1) /* 0x1 */);
-    // 004baaee  81e3ff000000           -and ebx, 0xff
-    cpu.ebx &= x86::reg32(x86::sreg32(255 /*0xff*/));
-    // 004baaf4  8b1c9f                 -mov ebx, dword ptr [edi + ebx*4]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.edi + cpu.ebx * 4);
-    // 004baaf7  c1eb03                 -shr ebx, 3
-    cpu.ebx >>= 3 /*0x3*/ % 32;
-    // 004baafa  81e31f1f1f1f           -and ebx, 0x1f1f1f1f
-    cpu.ebx &= x86::reg32(x86::sreg32(522133279 /*0x1f1f1f1f*/));
-    // 004bab00  01d8                   -add eax, ebx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
-    // 004bab02  8b1c0e                 -mov ebx, dword ptr [esi + ecx]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.esi + cpu.ecx * 1);
-    // 004bab05  81e3ff000000           -and ebx, 0xff
-    cpu.ebx &= x86::reg32(x86::sreg32(255 /*0xff*/));
-    // 004bab0b  8b1c9f                 -mov ebx, dword ptr [edi + ebx*4]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.edi + cpu.ebx * 4);
-    // 004bab0e  c1eb03                 -shr ebx, 3
-    cpu.ebx >>= 3 /*0x3*/ % 32;
-    // 004bab11  81e31f1f1f1f           -and ebx, 0x1f1f1f1f
-    cpu.ebx &= x86::reg32(x86::sreg32(522133279 /*0x1f1f1f1f*/));
-    // 004bab17  01d8                   -add eax, ebx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
-    // 004bab19  8b5c0e01               -mov ebx, dword ptr [esi + ecx + 1]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.esi + x86::reg32(1) /* 0x1 */ + cpu.ecx * 1);
-    // 004bab1d  81e3ff000000           -and ebx, 0xff
-    cpu.ebx &= x86::reg32(x86::sreg32(255 /*0xff*/));
-    // 004bab23  8b1c9f                 -mov ebx, dword ptr [edi + ebx*4]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.edi + cpu.ebx * 4);
-    // 004bab26  89da                   -mov edx, ebx
-    cpu.edx = cpu.ebx;
-    // 004bab28  d1eb                   -shr ebx, 1
-    cpu.ebx >>= 1 /*0x1*/ % 32;
-    // 004bab2a  81e2fcfcfcfc           -and edx, 0xfcfcfcfc
-    cpu.edx &= x86::reg32(x86::sreg32(4244438268 /*0xfcfcfcfc*/));
-    // 004bab30  c1ea02                 -shr edx, 2
-    cpu.edx >>= 2 /*0x2*/ % 32;
-    // 004bab33  81e37f7f7f7f           -and ebx, 0x7f7f7f7f
-    cpu.ebx &= x86::reg32(x86::sreg32(2139062143 /*0x7f7f7f7f*/));
-    // 004bab39  01d0                   -add eax, edx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.edx));
-    // 004bab3b  01d8                   -add eax, ebx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
-    // 004bab3d  c3                     -ret 
     cpu.esp += 4;
     return;
 }

@@ -4,6 +4,46 @@
 namespace nfs2sea
 {
 
+/* align: skip 0x90 */
+void Application::sub_4b7794(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    // 004b7794  8b442404               -mov eax, dword ptr [esp + 4]
+    cpu.eax = app->getMemory<x86::reg32>(cpu.esp + x86::reg32(4) /* 0x4 */);
+    // 004b7798  c70000000000           -mov dword ptr [eax], 0
+    app->getMemory<x86::reg32>(cpu.eax) = 0 /*0x0*/;
+    // 004b779e  c7400400000000         -mov dword ptr [eax + 4], 0
+    app->getMemory<x86::reg32>(cpu.eax + x86::reg32(4) /* 0x4 */) = 0 /*0x0*/;
+    // 004b77a5  c6401400               -mov byte ptr [eax + 0x14], 0
+    app->getMemory<x86::reg8>(cpu.eax + x86::reg32(20) /* 0x14 */) = 0 /*0x0*/;
+    // 004b77a9  c6401500               -mov byte ptr [eax + 0x15], 0
+    app->getMemory<x86::reg8>(cpu.eax + x86::reg32(21) /* 0x15 */) = 0 /*0x0*/;
+    // 004b77ad  8b542408               -mov edx, dword ptr [esp + 8]
+    cpu.edx = app->getMemory<x86::reg32>(cpu.esp + x86::reg32(8) /* 0x8 */);
+    // 004b77b1  c6401600               -mov byte ptr [eax + 0x16], 0
+    app->getMemory<x86::reg8>(cpu.eax + x86::reg32(22) /* 0x16 */) = 0 /*0x0*/;
+    // 004b77b5  895018                 -mov dword ptr [eax + 0x18], edx
+    app->getMemory<x86::reg32>(cpu.eax + x86::reg32(24) /* 0x18 */) = cpu.edx;
+    // 004b77b8  8b54240c               -mov edx, dword ptr [esp + 0xc]
+    cpu.edx = app->getMemory<x86::reg32>(cpu.esp + x86::reg32(12) /* 0xc */);
+    // 004b77bc  89501c                 -mov dword ptr [eax + 0x1c], edx
+    app->getMemory<x86::reg32>(cpu.eax + x86::reg32(28) /* 0x1c */) = cpu.edx;
+    // 004b77bf  8b542410               -mov edx, dword ptr [esp + 0x10]
+    cpu.edx = app->getMemory<x86::reg32>(cpu.esp + x86::reg32(16) /* 0x10 */);
+    // 004b77c3  895020                 -mov dword ptr [eax + 0x20], edx
+    app->getMemory<x86::reg32>(cpu.eax + x86::reg32(32) /* 0x20 */) = cpu.edx;
+    // 004b77c6  8b4018                 -mov eax, dword ptr [eax + 0x18]
+    cpu.eax = app->getMemory<x86::reg32>(cpu.eax + x86::reg32(24) /* 0x18 */);
+    // 004b77c9  c700f0764b00           -mov dword ptr [eax], 0x4b76f0
+    app->getMemory<x86::reg32>(cpu.eax) = 4945648 /*0x4b76f0*/;
+    // 004b77cf  31c0                   -xor eax, eax
+    cpu.eax ^= x86::reg32(x86::sreg32(cpu.eax));
+    // 004b77d1  c3                     -ret 
+    cpu.esp += 4;
+    return;
+}
+
 /* align: skip 0x00 0x00 */
 void Application::sub_4b77d4(WinApplication* app, x86::CPU& cpu)
 {
@@ -9360,36 +9400,6 @@ void Application::sub_4b9352(WinApplication* app, x86::CPU& cpu)
     // 004b9381  01d8                   -add eax, ebx
     (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
     // 004b9383  c3                     -ret 
-    cpu.esp += 4;
-    return;
-}
-
-/* align: skip  */
-void Application::sub_4b9384(WinApplication* app, x86::CPU& cpu)
-{
-  NFS2_USE(cpu);
-  NFS2_USE(app);
-    // 004b9384  89c3                   -mov ebx, eax
-    cpu.ebx = cpu.eax;
-    // 004b9386  d1e8                   -shr eax, 1
-    cpu.eax >>= 1 /*0x1*/ % 32;
-    // 004b9388  81e3fcfcfcfc           -and ebx, 0xfcfcfcfc
-    cpu.ebx &= x86::reg32(x86::sreg32(4244438268 /*0xfcfcfcfc*/));
-    // 004b938e  c1eb02                 -shr ebx, 2
-    cpu.ebx >>= 2 /*0x2*/ % 32;
-    // 004b9391  257f7f7f7f             -and eax, 0x7f7f7f7f
-    cpu.eax &= x86::reg32(x86::sreg32(2139062143 /*0x7f7f7f7f*/));
-    // 004b9396  01d8                   -add eax, ebx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
-    // 004b9398  8b1c0e                 -mov ebx, dword ptr [esi + ecx]
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.esi + cpu.ecx * 1);
-    // 004b939b  c1eb02                 -shr ebx, 2
-    cpu.ebx >>= 2 /*0x2*/ % 32;
-    // 004b939e  81e33f3f3f3f           -and ebx, 0x3f3f3f3f
-    cpu.ebx &= x86::reg32(x86::sreg32(1061109567 /*0x3f3f3f3f*/));
-    // 004b93a4  01d8                   -add eax, ebx
-    (cpu.eax) += x86::reg32(x86::sreg32(cpu.ebx));
-    // 004b93a6  c3                     -ret 
     cpu.esp += 4;
     return;
 }

@@ -4,6 +4,34 @@
 namespace nfs2sea
 {
 
+/* align: skip 0x90 */
+void Application::sub_49a968(WinApplication* app, x86::CPU& cpu)
+{
+  NFS2_USE(cpu);
+  NFS2_USE(app);
+    // 0049a968  51                     -push ecx
+    app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ecx;
+    cpu.esp -= 4;
+    // 0049a969  89d9                   -mov ecx, ebx
+    cpu.ecx = cpu.ebx;
+    // 0049a96b  89d3                   -mov ebx, edx
+    cpu.ebx = cpu.edx;
+    // 0049a96d  89c2                   -mov edx, eax
+    cpu.edx = cpu.eax;
+    // 0049a96f  89c8                   -mov eax, ecx
+    cpu.eax = cpu.ecx;
+    // 0049a971  e896ffffff             -call 0x49a90c
+    cpu.esp -= 4;
+    sub_49a90c(app, cpu);
+    if (cpu.terminate) return;
+    // 0049a976  59                     -pop ecx
+    cpu.ecx = app->getMemory<x86::reg32>(cpu.esp);
+    cpu.esp += 4;
+    // 0049a977  c3                     -ret 
+    cpu.esp += 4;
+    return;
+}
+
 /* align: skip  */
 void Application::sub_49a978(WinApplication* app, x86::CPU& cpu)
 {
@@ -9211,7 +9239,6 @@ void Application::sub_49ca78(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
-  app->traceEntry(0x0049ca78, cpu);
     // 0049ca78  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
@@ -11325,7 +11352,6 @@ void Application::sub_49cfb0(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
-  app->traceEntry(0x0049cfb0, cpu);
     // 0049cfb0  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
@@ -11416,7 +11442,6 @@ void Application::sub_49d020(WinApplication* app, x86::CPU& cpu)
 {
   NFS2_USE(cpu);
   NFS2_USE(app);
-  app->traceEntry(0x0049d020, cpu);
     // 0049d020  53                     -push ebx
     app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
     cpu.esp -= 4;
@@ -14985,28 +15010,6 @@ void Application::sub_49d990(WinApplication* app, x86::CPU& cpu)
     cpu.eax = app->getMemory<x86::reg32>(cpu.eax);
 L_0x0049d99b:
     // 0049d99b  c3                     -ret 
-    cpu.esp += 4;
-    return;
-}
-
-/* align: skip  */
-void Application::sub_49d99c(WinApplication* app, x86::CPU& cpu)
-{
-  NFS2_USE(cpu);
-  NFS2_USE(app);
-    // 0049d99c  53                     -push ebx
-    app->getMemory<x86::reg32>(cpu.esp-4) = cpu.ebx;
-    cpu.esp -= 4;
-    // 0049d99d  bb01000000             -mov ebx, 1
-    cpu.ebx = 1 /*0x1*/;
-    // 0049d9a2  e811000000             -call 0x49d9b8
-    cpu.esp -= 4;
-    sub_49d9b8(app, cpu);
-    if (cpu.terminate) return;
-    // 0049d9a7  5b                     -pop ebx
-    cpu.ebx = app->getMemory<x86::reg32>(cpu.esp);
-    cpu.esp += 4;
-    // 0049d9a8  c3                     -ret 
     cpu.esp += 4;
     return;
 }
