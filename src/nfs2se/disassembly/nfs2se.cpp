@@ -3168,8 +3168,7 @@ Application::Application(const char* appName)
     registerMethod(0x004ab643, {"<Application>sub_4ab643", &Application::sub_4ab643});
     registerMethod(0x004ab67d, {"<Application>sub_4ab67d", &Application::sub_4ab67d});
     registerMethod(0x004ab6ca, {"<Application>sub_4ab6ca", &Application::sub_4ab6ca});
-    registerMethod(0x004ab881, {"<Application>sub_4ab881", &Application::sub_4ab881});
-    registerMethod(0x004ab888, {"<Application>sub_4ab888", &Application::sub_4ab888});
+    registerMethod(0x004ab89f, {"<Application>sub_4ab89f", &Application::sub_4ab89f});
     registerMethod(0x004aba63, {"<Application>sub_4aba63", &Application::sub_4aba63});
     registerMethod(0x004abaaf, {"<Application>sub_4abaaf", &Application::sub_4abaaf});
     registerMethod(0x004abad3, {"<Application>sub_4abad3", &Application::sub_4abad3});
