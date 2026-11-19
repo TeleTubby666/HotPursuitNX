@@ -5,7 +5,7 @@ class Application(Module):
     def __init__(self, application_name, exe_path, rebase_after):
         Module.__init__(self, application_name, exe_path, rebase_after)
 
-    def write(self, thread_segments=[], skip_instructions=[], dlls=[], function_names={}, trace_functions=[]):
+    def write(self, thread_segments=[], skip_instructions=[], dlls=[], function_names={}, trace_functions=[], profile_functions=False):
         try:
             os.makedirs('src/%s/disassembly' % (self.application_name))
         except OSError:
@@ -105,6 +105,8 @@ class Application(Module):
                                       '{\n'
                                       '  NFS2_USE(cpu);\n'
                                       '  NFS2_USE(app);\n' % name)
+                        if profile_functions:
+                            methods.write('  WinApplication::profileEntry(0x%08x);\n' % function_entry)
                         if function_entry in trace_functions:
                             methods.write('  app->traceEntry(0x%08x, cpu);\n' % function_entry)
                         if subroutine.thread_unsafe:

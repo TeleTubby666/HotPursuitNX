@@ -491,6 +491,7 @@ void GlideRenderer::swap()
                     f / seconds, s_glidePerf.maxGapNs / 1e6, s_glidePerf.triangles / f, s_glidePerf.drawCalls / f,
                     s_glidePerf.swapNs / 1e6 / f, double(s_glidePerf.uploads) / f, s_glidePerf.uploadNs / 1e6 / f,
                     double(s_glidePerf.skippedUploads) / f);
+        WinApplication::profileReport();
         const Uint64 lastSwap = s_glidePerf.lastSwap;
         s_glidePerf = GlidePerf();
         s_glidePerf.windowStart = perfEnd;

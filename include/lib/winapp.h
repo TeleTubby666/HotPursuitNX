@@ -23,6 +23,9 @@ struct Method
 {
     std::string name;
     MethodPtr method;
+    /* diagnosis (profile): calls and time spent inside, counted by dynamic_call */
+    mutable uint64_t calls = 0;
+    mutable uint64_t ticks = 0;
 
     void operator()(WinApplication* application, x86::CPU& cpu) const
     {
@@ -180,8 +183,23 @@ public:
         }
         const win32::Method& m = it->second;
         traceCall(m, cpu);
+        const uint64_t start = SDL_GetPerformanceCounter();
         m(this, cpu);
+        __atomic_fetch_add(&m.calls, 1, __ATOMIC_RELAXED);
+        __atomic_fetch_add(&m.ticks, SDL_GetPerformanceCounter() - start, __ATOMIC_RELAXED);
     }
+
+    /* diagnosis (profile): every generated guest function counts its calls (generator option profile_functions) */
+    static uint32_t s_entryCounts[0xc8000 >> 2];
+    static inline void profileEntry(x86::reg32 address)
+    {
+        const x86::reg32 i = (address - 0x400000) >> 2;
+        if (i < (0xc8000 >> 2))
+            __atomic_fetch_add(&s_entryCounts[i], 1, __ATOMIC_RELAXED);
+    }
+    /* logs the API functions and callbacks with the most time and the guest functions with the most calls since
+       the last report ("profile:" lines) */
+    static void profileReport();
 
     /* diagnosis: the first calls of every API function and callback, with the thread and the first arguments */
     void traceCall(const win32::Method& m, x86::CPU& cpu);

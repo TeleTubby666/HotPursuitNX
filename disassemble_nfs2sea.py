@@ -35,6 +35,8 @@ DATA_SEGMENTS = [
 KNOWN_SUBROUTINES = [
     # a bare "ret": the no-op entry of the game's Glide function table at 0x4dae90, called through it every frame
     0x4976b4,
+    # stored as a function pointer (mov [ecx+0x37c], 0x43d920), behind zero padding; called during races
+    0x43d920,
     ]
 
 
@@ -56,4 +58,5 @@ if __name__ == '__main__':
     application = disassembler.disassemble('nfs2sea', 'nfs2sea/nfs2sea.exe', DATA_SEGMENTS,
                                            KNOWN_SUBROUTINES, SPLIT_INSTRUCTIONS, THREAD_ROUTINES)
     eacsnd = disassembler.disassemble('eacsnd', 'nfs2sea/eacsnd.dll', type=dll.DLL, rebase_after=application)
-    application.write(THREAD_SEGMENTS, dlls=[eacsnd], function_names=FUNCTION_NAMES, trace_functions=TRACE_FUNCTIONS)
+    application.write(THREAD_SEGMENTS, dlls=[eacsnd], function_names=FUNCTION_NAMES, trace_functions=TRACE_FUNCTIONS,
+                      profile_functions=True)

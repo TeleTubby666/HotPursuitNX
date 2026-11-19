@@ -46,6 +46,63 @@ x86::reg32 GenericResource::getResourceIndex() const
 }
 
 
+static WinApplication* s_profileApp = nullptr;
+uint32_t WinApplication::s_entryCounts[0xc8000 >> 2];
+
+void WinApplication::profileReport()
+{
+    WinApplication* app = s_profileApp;
+    if (!app)
+        return;
+    static uint64_t s_lastReport = 0;
+    static std::unordered_map<const Method*, std::pair<uint64_t, uint64_t>> s_lastMethods;
+    static std::vector<uint32_t> s_lastEntries(0xc8000 >> 2, 0);
+    const uint64_t now = SDL_GetPerformanceCounter();
+    const double freq = double(SDL_GetPerformanceFrequency());
+    const double seconds = s_lastReport ? (now - s_lastReport) / freq : 0.0;
+    s_lastReport = now;
+    struct Row { const Method* m; uint64_t calls, ticks; };
+    std::vector<Row> rows;
+    for (std::unordered_map<x86::reg32, Method>::const_iterator it = app->m_methods.begin(); it != app->m_methods.end(); ++it)
+    {
+        const Method& m = it->second;
+        const uint64_t calls = __atomic_load_n(&m.calls, __ATOMIC_RELAXED);
+        const uint64_t ticks = __atomic_load_n(&m.ticks, __ATOMIC_RELAXED);
+        std::pair<uint64_t, uint64_t>& last = s_lastMethods[&m];
+        if (calls != last.first)
+            rows.push_back(Row{&m, calls - last.first, ticks - last.second});
+        last = std::make_pair(calls, ticks);
+    }
+    std::vector<std::pair<uint32_t, x86::reg32>> entries;
+    for (x86::reg32 i = 0; i < (0xc8000 >> 2); ++i)
+    {
+        const uint32_t n = __atomic_load_n(&s_entryCounts[i], __ATOMIC_RELAXED);
+        if (n != s_lastEntries[i])
+            entries.push_back(std::make_pair(n - s_lastEntries[i], 0x400000 + (i << 2)));
+        s_lastEntries[i] = n;
+    }
+    if (seconds <= 0.0)
+        return;
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) { return a.ticks > b.ticks; });
+    std::sort(entries.begin(), entries.end(), [](const std::pair<uint32_t, x86::reg32>& a, const std::pair<uint32_t, x86::reg32>& b) { return a.first > b.first; });
+    std::string line;
+    char buf[160];
+    for (size_t i = 0; i < rows.size() && i < 14; ++i)
+    {
+        SDL_snprintf(buf, sizeof(buf), "%s%s %.0f/s %.1f%%", i ? ", " : "", rows[i].m->name.c_str(),
+                     rows[i].calls / seconds, 100.0 * (rows[i].ticks / freq) / seconds);
+        line += buf;
+    }
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "profile: calls (per second, share of %.1f s inclusive): %s", seconds, line.c_str());
+    line.clear();
+    for (size_t i = 0; i < entries.size() && i < 20; ++i)
+    {
+        SDL_snprintf(buf, sizeof(buf), "%s%x %.0f/s", i ? ", " : "", (unsigned) entries[i].second, entries[i].first / seconds);
+        line += buf;
+    }
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "profile: busiest guest functions: %s", line.c_str());
+}
+
 WinApplication::WinApplication(const char* appName, x86::reg32 baseAddress, const std::vector<Section>& sections)
     :   m_memory(MemMap::init(baseAddress, sections))
     ,   m_appName(new MemMap(4096))
@@ -55,6 +112,7 @@ WinApplication::WinApplication(const char* appName, x86::reg32 baseAddress, cons
     ,   m_resourceContext(new Mutex("Resource"))
     ,   m_cpu{}
 {
+    s_profileApp = this;
     /*m_methods = new Method[sections[0].size+sections[0].baseAddress - 0x400000];
     memset(m_methods, 0, sizeof(Method)*(sections[0].size+sections[0].baseAddress - 0x400000));*/
     dsetup::s_dSetupRegistry->registerSymbols(this);
