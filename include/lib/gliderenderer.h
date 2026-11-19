@@ -127,6 +127,15 @@ private:
     GlideTMU*               m_tmus[2];
     /* content of the texture last uploaded to each address: the game downloads the same textures again and again */
     std::unordered_map<x86::reg32, uint64_t> m_textureHash;
+    /* every picture in the atlas, by content; refs = addresses that hold it, lastFrame = last frame it was used in */
+    struct CachedTexture
+    {
+        GlTextureSlot* slot;
+        x86::reg32 refs;
+        uint64_t lastFrame;
+    };
+    std::unordered_map<uint64_t, CachedTexture> m_textureCache;
+    uint64_t m_frame = 0;
 };
 
 }

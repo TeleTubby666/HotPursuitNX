@@ -466,6 +466,7 @@ void GlideRenderer::swap()
         m_drawCalls.clear();
         glDisable(GL_SCISSOR_TEST);
     }
+    ++m_frame;
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glUseProgram(0);
     glFlush();
@@ -555,9 +556,18 @@ void GlideRenderer::setTexture(x86::reg32 tmu, x86::reg32 address)
 {
     NFS2_ASSERT(tmu == 0);
     GlTextureSlot** info = m_tmus[tmu]->getTextureInfo(address);
+    if (!*info)
+        return;
     m_textureOffsetW = 256 >> (*info)->lod;
     m_textureOffsetX = (*info)->x;
     m_textureOffsetY = (*info)->y;
+    std::unordered_map<x86::reg32, uint64_t>::const_iterator known = m_textureHash.find(address);
+    if (known != m_textureHash.end())
+    {
+        std::unordered_map<uint64_t, CachedTexture>::iterator cached = m_textureCache.find(known->second);
+        if (cached != m_textureCache.end())
+            cached->second.lastFrame = m_frame;
+    }
 }
 
 void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const void* data,
@@ -580,22 +590,66 @@ void GlideRenderer::setTextureData(x86::reg32 tmu, x86::reg32 address, const voi
             hash = (hash ^ words[i / 8]) * 0x100000001b3ull;
         for (const x86::reg8* tail = reinterpret_cast<const x86::reg8*>(data); i < bytes; ++i)
             hash = (hash ^ tail[i]) * 0x100000001b3ull;
+        hash ^= hash >> 29;
+        hash *= 0xbf58476d1ce4e5b9ull;
+        hash ^= hash >> 32;
         std::unordered_map<x86::reg32, uint64_t>::iterator known = m_textureHash.find(address);
-        if (*info && (*info)->lod == largeMipmap && known != m_textureHash.end() && known->second == hash)
+        if (*info && known != m_textureHash.end() && known->second == hash)
         {
             ++s_glidePerf.skippedUploads;
             return;
         }
+        /* The texture that was at this address stays in the atlas: triangles of this frame that still use it are only
+           drawn at grBufferSwap. Freeing it right away handed its place to the next download, and the menus (which
+           download a texture, draw a quad, download the next one into the same address, ...) showed only the last one. */
+        if (known != m_textureHash.end())
+        {
+            std::unordered_map<uint64_t, CachedTexture>::iterator old = m_textureCache.find(known->second);
+            if (old != m_textureCache.end() && old->second.refs)
+                --old->second.refs;
+        }
         m_textureHash[address] = hash;
+        std::unordered_map<uint64_t, CachedTexture>::iterator cached = m_textureCache.find(hash);
+        if (cached != m_textureCache.end())
+        {
+            /* the same picture was uploaded before (to this or another address): use it */
+            ++cached->second.refs;
+            cached->second.lastFrame = m_frame;
+            *info = cached->second.slot;
+            ++s_glidePerf.skippedUploads;
+            return;
+        }
+        GlTextureSlot* slot = m_tmus[tmu]->reserveTextureSlot(largeMipmap);
+        for (int pass = 0; !slot && pass < 2; ++pass)
+        {
+            /* atlas full: drop textures no address refers to, first those not used in this frame */
+            for (std::unordered_map<uint64_t, CachedTexture>::iterator it = m_textureCache.begin(); it != m_textureCache.end();)
+            {
+                if (!it->second.refs && (pass || it->second.lastFrame != m_frame))
+                {
+                    m_tmus[tmu]->returnTextureSlot(it->second.slot);
+                    it = m_textureCache.erase(it);
+                }
+                else
+                {
+                    ++it;
+                }
+            }
+            slot = m_tmus[tmu]->reserveTextureSlot(largeMipmap);
+        }
+        if (!slot)
+        {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "glide: texture atlas full, texture at 0x%x not uploaded", (unsigned) address);
+            *info = nullptr;
+            m_textureHash.erase(address);
+            return;
+        }
+        m_textureCache[hash] = CachedTexture{slot, 1, m_frame};
+        *info = slot;
     }
 
     m_renderer->setCurrent();
     glBindTexture(GL_TEXTURE_2D, m_atlas);
-    if (*info)
-    {
-        m_tmus[tmu]->returnTextureSlot(*info);
-    }
-    *info = m_tmus[tmu]->reserveTextureSlot(largeMipmap);
 
     x86::reg32 x = (*info)->x;
     x86::reg32 y = (*info)->y;

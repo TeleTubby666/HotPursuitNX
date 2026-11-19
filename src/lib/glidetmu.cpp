@@ -55,6 +55,7 @@ GlTextureSlot** GlideTMU::getTextureInfo(x86::reg32 address)
 GlTextureSlot* GlideTMU::allocateTextureSlot()
 {
     GlTextureSlot* result = m_firstFreeTextureSlot;
+    NFS2_ASSERT(result);
     m_firstFreeTextureSlot = result->next;
     return result;
 }
@@ -113,6 +114,8 @@ GlTextureSlot* GlideTMU::reserveTextureSlot(x86::reg32 lod)
             }
         }
         result = m_textureSlots[lod];
+        if (!result)
+            return nullptr;
     }
     m_textureSlots[lod] = result->next;
     return result;
@@ -120,9 +123,39 @@ GlTextureSlot* GlideTMU::reserveTextureSlot(x86::reg32 lod)
 
 void GlideTMU::returnTextureSlot(GlTextureSlot* slot)
 {
+    /* join the four quarters of a block again when all of them are free, so that large textures still find room */
+    while (slot->lod > 0)
+    {
+        const x86::reg32 size = 256 >> slot->lod;
+        const x86::reg32 px = slot->x & ~(2 * size - 1);
+        const x86::reg32 py = slot->y & ~(2 * size - 1);
+        GlTextureSlot* quarters[3];
+        int found = 0;
+        for (GlTextureSlot* s = m_textureSlots[slot->lod]; s && found < 3; s = s->next)
+        {
+            if (s != slot && (s->x & ~(2 * size - 1)) == px && (s->y & ~(2 * size - 1)) == py)
+                quarters[found++] = s;
+        }
+        if (found < 3)
+            break;
+        for (int i = 0; i < 3; ++i)
+        {
+            for (GlTextureSlot** link = &m_textureSlots[slot->lod]; *link; link = &(*link)->next)
+            {
+                if (*link == quarters[i])
+                {
+                    *link = quarters[i]->next;
+                    break;
+                }
+            }
+            freeTextureSlot(quarters[i]);
+        }
+        slot->lod--;
+        slot->x = px;
+        slot->y = py;
+    }
     slot->next = m_textureSlots[slot->lod];
     m_textureSlots[slot->lod] = slot;
-    /* todo: consolidate */
 }
 
 }
